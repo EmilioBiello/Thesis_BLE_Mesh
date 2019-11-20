@@ -11,15 +11,12 @@
 #include "driver/gpio.h"
 #include "esp_ble_mesh_defs.h"
 
-#if defined(CONFIG_BLE_MESH_ESP_WROOM_32)
 #define LED_R GPIO_NUM_25
 #define LED_G GPIO_NUM_26
 #define LED_B GPIO_NUM_27
-#elif defined(CONFIG_BLE_MESH_ESP_WROVER)
-#define LED_R GPIO_NUM_0
-#define LED_G GPIO_NUM_2
-#define LED_B GPIO_NUM_4
-#endif
+
+#define BUTTON_PIN 2
+#define ESP_INTR_FLAG_DEFAULT 0
 
 #define LED_ON  1
 #define LED_OFF 0
