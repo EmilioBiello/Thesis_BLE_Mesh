@@ -11,9 +11,7 @@
 #include "driver/gpio.h"
 #include "esp_ble_mesh_defs.h"
 
-#define LED_R GPIO_NUM_25
 #define LED_G GPIO_NUM_26
-#define LED_B GPIO_NUM_27
 
 #define BUTTON_PIN 2
 #define ESP_INTR_FLAG_DEFAULT 0
@@ -29,8 +27,6 @@ struct _led_state {
 };
 
 void board_output_number(esp_ble_mesh_output_action_t action, uint32_t number);
-
-void board_prov_complete(void);
 
 void board_led_operation(uint8_t pin, uint8_t onoff);
 

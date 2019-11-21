@@ -35,11 +35,6 @@ void board_output_number(esp_ble_mesh_output_action_t action, uint32_t number)
     ESP_LOGI(TAG, "Board output number %d", number);
 }
 
-void board_prov_complete(void)
-{
-    board_led_operation(LED_G, LED_OFF);
-}
-
 void board_led_operation(uint8_t pin, uint8_t onoff)
 {
     for (int i = 0; i < 3; i++) {
@@ -126,5 +121,5 @@ fail:
 void board_init(void)
 {
     board_led_init();
-    switch_init(GPIO_NUM_18);
+    //switch_init(GPIO_NUM_18);
 }

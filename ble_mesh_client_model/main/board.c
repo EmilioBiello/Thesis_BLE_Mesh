@@ -25,35 +25,24 @@
 
 extern uint16_t remote_addr;
 
-struct _led_state led_state[3] = {
-        {LED_OFF, LED_OFF, LED_R, "red"},
-        {LED_OFF, LED_OFF, LED_G, "green"},
-        {LED_OFF, LED_OFF, LED_B, "blue"},
-};
+struct _led_state led_state = {LED_OFF, LED_OFF, LED_G, "green"};
 
 void board_output_number(esp_ble_mesh_output_action_t action, uint32_t number) {
     ESP_LOGI(TAG, "Board output number %d", number);
 }
 
-void board_prov_complete(void) {
-    board_led_operation(LED_G, LED_OFF);
-}
-
 void board_led_operation(uint8_t pin, uint8_t onoff) {
-    for (int i = 0; i < ARRAY_SIZE(led_state); i++) {
-        if (led_state[i].pin != pin) {
-            continue;
-        }
-        if (onoff == led_state[i].previous) {
-            ESP_LOGW(TAG, "led %s is already %s",
-                     led_state[i].name, (onoff ? "on" : "off"));
-            return;
-        }
-        gpio_set_level(pin, onoff);
-        led_state[i].previous = onoff;
+    if (led_state.pin != pin) {
+        ESP_LOGE(TAG, "LED is not found!");
         return;
     }
-    ESP_LOGE(TAG, "LED is not found!");
+    if (onoff == led_state.previous) {
+        ESP_LOGW(TAG, "led %s is already %s",
+                 led_state.name, (onoff ? "on" : "off"));
+        return;
+    }
+    gpio_set_level(pin, onoff);
+    led_state.previous = onoff;
 }
 
 /**
@@ -68,13 +57,13 @@ void IRAM_ATTR gpio_isr_handler(void *arg) {
 }
 
 static void board_emilio_task(void *p) {
-    uint32_t leds[SIZE_LEDS] = {3, 4, 5, 6, 7, 8};
+    uint32_t leds[SIZE_LEDS] = {4, 5, 6, 7};
     uint8_t index = 0;
 
     while (1) {
         if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE) {
             remote_addr = leds[index] & 0xFFFF;
-            printf("%s: Define remote_addr! input: %u, remote address: %hu\n", __func__, leds[index], remote_addr);
+            printf("%s: Define remote_addr! --> remote address: %hu\n", __func__, remote_addr);
             if (index == SIZE_LEDS - 1) index = 0; else index++;
         }
     }
@@ -97,17 +86,15 @@ static void board_emilio_init() {
 }
 
 static void board_led_init(void) {
-    for (int i = 0; i < ARRAY_SIZE(led_state); i++) {
-        gpio_pad_select_gpio(led_state[i].pin);
-        gpio_set_direction(led_state[i].pin, GPIO_MODE_OUTPUT);
-        gpio_set_level(led_state[i].pin, LED_OFF);
-        led_state[i].previous = LED_OFF;
-    }
+    gpio_pad_select_gpio(led_state.pin);
+    gpio_set_direction(led_state.pin, GPIO_MODE_OUTPUT);
+    gpio_set_level(led_state.pin, LED_OFF);
+    led_state.previous = LED_OFF;
 }
 
 
 void board_init(void) {
     board_led_init();
     board_emilio_init();
-    printf("------ %s ------", __func__);
+    printf("------ %s ------\n", __func__);
 }
