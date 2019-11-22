@@ -22,7 +22,7 @@
 
 extern void example_ble_mesh_send_gen_onoff_set(void);
 
-extern uint8_t send_message_unack(void);
+extern uint8_t send_message_unack(uint32_t);
 
 struct _led_state led_state = {LED_OFF, LED_OFF, LED_G, "green"};
 
@@ -65,7 +65,7 @@ static void board_emilio_task(void *p) {
         if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE) {
             printf("Send Message:\n");
             //send_ble_set(ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, remote_address);
-            board_led_operation(LED_G, send_message_unack());
+            board_led_operation(LED_G, send_message_unack(ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK));
         }
     }
 }

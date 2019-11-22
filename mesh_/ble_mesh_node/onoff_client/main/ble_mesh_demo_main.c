@@ -125,16 +125,20 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-u_int8_t send_message_unack() {
+u_int8_t send_message_unack(uint32_t opcode) {
     esp_ble_mesh_generic_client_set_state_t set = {0};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
 
-    common.opcode = ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK;
+    if (opcode != ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET || opcode != ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK) {
+        ESP_LOGE(TAG, "%s: Opcode Error", __func__);
+    }
+
+    common.opcode = opcode;
     common.model = onoff_client.model;
     common.ctx.net_idx = node_net_idx;
     common.ctx.app_idx = node_app_idx;
-    common.ctx.addr = 0xFFFF;   /* to all nodes */
+    common.ctx.addr = 0xFFFF;   /* 0xFFFF --> to all nodes */
     common.ctx.send_ttl = 3;
     common.ctx.send_rel = false;
     common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
@@ -192,8 +196,9 @@ void example_ble_mesh_send_gen_onoff_set(void) {
 
 static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
                                                esp_ble_mesh_generic_client_cb_param_t *param) {
-    ESP_LOGI(TAG, "%s: event is %d, error code is %d, opcode is 0x%x",
-             __func__, event, param->error_code, param->params->opcode);
+
+    ESP_LOGI(TAG, "%s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x",
+             __func__, event, param->error_code, param->params->ctx.addr, param->params->opcode);
 
     switch (event) {
         case ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT:
@@ -214,6 +219,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT");
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
+            /* If failed to receive the responses, these messages will be resend */
             ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT");
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
                 /* If failed to get the response of Generic OnOff Set, resend Generic OnOff Set  */
@@ -257,8 +263,11 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
 static esp_err_t ble_mesh_init(void) {
     esp_err_t err = 0;
 
+    // is used to register callback function used to handle provisioning and networking related events
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
+    // is used to register callback function used to handle Generic Client Models related events
     esp_ble_mesh_register_generic_client_callback(example_ble_mesh_generic_client_cb);
+    // is used to register callback function used to handle Configuration Client Model related events
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);

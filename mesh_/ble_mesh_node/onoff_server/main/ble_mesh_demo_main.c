@@ -26,12 +26,12 @@
 
 #define CID_ESP 0x02E5
 
-extern struct _led_state led_state[3];
+extern struct _led_state led_state[2];
 
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
-        .relay = ESP_BLE_MESH_RELAY_DISABLED,
+        .relay = ESP_BLE_MESH_RELAY_ENABLED,
         .beacon = ESP_BLE_MESH_BEACON_ENABLED,
 #if defined(CONFIG_BLE_MESH_FRIEND)
         .friend_state = ESP_BLE_MESH_FRIEND_ENABLED,
@@ -297,8 +297,11 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
 static esp_err_t ble_mesh_init(void) {
     esp_err_t err;
 
+    // is used to register callback function used to handle provisioning and networking related events
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
+    // is used to register callback function used to handle Configuration Server Model related events
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
+    //
     esp_ble_mesh_register_generic_server_callback(example_ble_mesh_generic_server_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
