@@ -22,7 +22,7 @@
 
 extern void example_ble_mesh_send_gen_onoff_set(void);
 
-extern uint8_t send_message_unack(uint32_t);
+extern uint8_t send_message_unack(uint16_t, uint32_t);
 
 struct _led_state led_state = {LED_OFF, LED_OFF, LED_G, "green"};
 
@@ -60,12 +60,20 @@ void IRAM_ATTR gpio_isr_handler(void *arg) {
 }
 
 static void board_emilio_task(void *p) {
-    //int remote_address = 5;
+    uint16_t remote_array[4] = {0xFFFF, 0xC001, 0x0003, 0x0004};
+    uint8_t index = 0;
+    bool onoff = false;
     while (1) {
         if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE) {
             printf("Send Message:\n");
             //send_ble_set(ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, remote_address);
-            board_led_operation(LED_G, send_message_unack(ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK));
+            board_led_operation(LED_G,
+                                send_message_unack(remote_array[index], ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK));
+            if (onoff) {
+                onoff = false;
+                (index == 3 ? index = 0 : index++);
+            } else
+                onoff = true;
         }
     }
 }

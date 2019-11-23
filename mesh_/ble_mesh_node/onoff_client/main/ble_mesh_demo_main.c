@@ -27,7 +27,7 @@
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 static uint16_t node_net_idx = ESP_BLE_MESH_KEY_UNUSED;
 static uint16_t node_app_idx = ESP_BLE_MESH_KEY_UNUSED;
-static uint8_t remote_onoff = LED_OFF;
+static uint8_t remote_onoff = LED_ON;
 static uint8_t msg_tid = 0x0;
 
 /* The remote node address shall be input through UART1, see board.c */
@@ -125,20 +125,16 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-u_int8_t send_message_unack(uint32_t opcode) {
+u_int8_t send_message_unack(uint16_t remote_addr, uint32_t opcode) {
     esp_ble_mesh_generic_client_set_state_t set = {0};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
-
-    if (opcode != ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET || opcode != ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK) {
-        ESP_LOGE(TAG, "%s: Opcode Error", __func__);
-    }
 
     common.opcode = opcode;
     common.model = onoff_client.model;
     common.ctx.net_idx = node_net_idx;
     common.ctx.app_idx = node_app_idx;
-    common.ctx.addr = 0xFFFF;   /* 0xFFFF --> to all nodes */
+    common.ctx.addr = remote_addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
     common.ctx.send_rel = false;
     common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
@@ -148,9 +144,8 @@ u_int8_t send_message_unack(uint32_t opcode) {
     set.onoff_set.onoff = remote_onoff;
     set.onoff_set.tid = msg_tid++;
 
-    printf("Message: status: %hhu -- sender: %hhu -- receiver: %hu -- tid%hhu\n", set.onoff_set.onoff,
-           common.model->element_idx,
-           common.ctx.addr, set.onoff_set.tid);
+    printf("Message: status: %hhu -- receiver_hex: 0x%04x -- receiver: %hu -- tid%hhu\n", set.onoff_set.onoff,
+           common.ctx.addr, common.ctx.addr, set.onoff_set.tid);
 
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set);

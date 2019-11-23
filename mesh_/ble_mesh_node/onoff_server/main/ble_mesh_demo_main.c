@@ -31,7 +31,7 @@ extern struct _led_state led_state[2];
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
-        .relay = ESP_BLE_MESH_RELAY_ENABLED,
+        .relay = ESP_BLE_MESH_RELAY_DISABLED,
         .beacon = ESP_BLE_MESH_BEACON_ENABLED,
 #if defined(CONFIG_BLE_MESH_FRIEND)
         .friend_state = ESP_BLE_MESH_FRIEND_ENABLED,
@@ -118,7 +118,7 @@ static void example_change_led_state(esp_ble_mesh_model_t *model,
     uint8_t elem_count = esp_ble_mesh_get_element_count();
     struct _led_state *led = NULL;
     uint8_t i;
-    printf("%s - [addr: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl,
+    printf("%s - [src: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl,
            onoff);
 
     if (ESP_BLE_MESH_ADDR_IS_UNICAST(ctx->recv_dst)) {
@@ -154,7 +154,7 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
             break;
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET:
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK:
-            printf("2 ONOFF_SET -- ONOFF_SET_UNACK\n");
+            //printf("2 ONOFF_SET -- ONOFF_SET_UNACK\n");
             if (set->op_en == false) {
                 srv->state.onoff = set->onoff;
             } else {
@@ -163,7 +163,7 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
             }
 
             if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
-                printf("2.01 Send Status message\n");
+                printf("%s [Send Status message] add: %d stauts: %d \n", __func__, ctx->addr, srv->state.onoff);
                 esp_ble_mesh_server_model_send_msg(model, ctx,
                                                    ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(srv->state.onoff),
                                                    &srv->state.onoff);
@@ -173,7 +173,7 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
                 esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(srv->state.onoff),
                                            &srv->state.onoff, ROLE_NODE);
             }
-            printf("2.2 cambio status led\n");
+            //printf("2.2 cambio status led\n");
             example_change_led_state(model, ctx, srv->state.onoff);
             break;
         default:
@@ -223,8 +223,9 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
  */
 static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_event_t event,
                                                esp_ble_mesh_generic_server_cb_param_t *param) {
-    ESP_LOGI(TAG, "event 0x%02x, opcode 0x%04x, src 0x%04x, dst 0x%04x recv_ttl 0x%04x send_ttl 0x%04x",
-             event, param->ctx.recv_op, param->ctx.addr, param->ctx.recv_dst, param->ctx.recv_ttl, param->ctx.send_ttl);
+    printf("----\n");
+    ESP_LOGI(TAG, "event 0x%02x, opcode 0x%04x, src 0x%04x, dst 0x%04x recv_ttl 0x%04x",
+             event, param->ctx.recv_op, param->ctx.addr, param->ctx.recv_dst, param->ctx.recv_ttl);
 
     switch (event) {
         case ESP_BLE_MESH_GENERIC_SERVER_STATE_CHANGE_EVT:
@@ -259,6 +260,7 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
             ESP_LOGE(TAG, "Unknown Generic Server event 0x%02x", event);
             break;
     }
+    printf("----\n");
 }
 
 static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
