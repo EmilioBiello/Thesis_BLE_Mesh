@@ -32,6 +32,7 @@ static uint8_t msg_tid = 0x0;
 
 /* The remote node address shall be input through UART1, see board.c */
 uint16_t remote_addr = ESP_BLE_MESH_ADDR_UNASSIGNED;
+bool prov_completed = false;
 
 static esp_ble_mesh_client_t onoff_client;
 
@@ -85,11 +86,16 @@ static esp_ble_mesh_prov_t provision = {
 #endif
 };
 
+bool get_info_provisioning() {
+    return prov_completed;
+}
+
 static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index) {
     ESP_LOGI(TAG, "net_idx: 0x%04x, addr: 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08x", flags, iv_index);
     board_led_operation(LED_G, LED_OFF);
     node_net_idx = net_idx;
+    prov_completed = true;
 }
 
 static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
@@ -122,6 +128,37 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
             break;
         default:
             break;
+    }
+}
+
+void send_message(uint16_t remote_addr, uint32_t opcode, uint8_t status) {
+    esp_ble_mesh_generic_client_set_state_t set = {0};
+    esp_ble_mesh_client_common_param_t common = {0};
+    esp_err_t err;
+
+    common.opcode = opcode;
+    common.model = onoff_client.model;
+    common.ctx.net_idx = node_net_idx;
+    common.ctx.app_idx = node_app_idx;
+    common.ctx.addr = remote_addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
+    common.ctx.send_ttl = 3;
+    common.ctx.send_rel = false;
+    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
+    common.msg_role = ROLE_NODE;
+
+    set.onoff_set.op_en = false;
+    set.onoff_set.onoff = status;
+    set.onoff_set.tid = msg_tid++;
+
+    printf("Message: status: %hhu -- receiver_hex: 0x%04x -- receiver: %hu -- tid%hhu\n", set.onoff_set.onoff,
+           common.ctx.addr, common.ctx.addr, set.onoff_set.tid);
+
+
+    err = esp_ble_mesh_generic_client_set_state(&common, &set);
+    if (err) {
+        ESP_LOGE(TAG, "%s: Generic OnOff Set failed", __func__);
+    } else {
+        remote_onoff = !remote_onoff;
     }
 }
 
