@@ -132,7 +132,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
 }
 
 void send_message(uint16_t remote_addr, uint32_t opcode, uint8_t status) {
-    esp_ble_mesh_generic_client_set_state_t set = {0};
+    esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
 
@@ -142,8 +142,8 @@ void send_message(uint16_t remote_addr, uint32_t opcode, uint8_t status) {
     common.ctx.app_idx = node_app_idx;
     common.ctx.addr = remote_addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
-    common.ctx.send_rel = false;
-    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
+    common.ctx.send_rel = true;
+    common.msg_timeout = 10000;     /* 0 indicates that timeout value from menuconfig will be used */
     common.msg_role = ROLE_NODE;
 
     set.onoff_set.op_en = false;
@@ -163,7 +163,7 @@ void send_message(uint16_t remote_addr, uint32_t opcode, uint8_t status) {
 }
 
 u_int8_t send_message_unack(uint16_t remote_addr, uint32_t opcode) {
-    esp_ble_mesh_generic_client_set_state_t set = {0};
+    esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
 
@@ -195,7 +195,7 @@ u_int8_t send_message_unack(uint16_t remote_addr, uint32_t opcode) {
 }
 
 void example_ble_mesh_send_gen_onoff_set(void) {
-    esp_ble_mesh_generic_client_set_state_t set = {0};
+    esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
 
@@ -259,6 +259,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             }
             break;
         default:
+            ESP_LOGI(TAG, "--- DEFAULT");
             break;
     }
 }

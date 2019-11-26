@@ -126,20 +126,38 @@ char **str_split(char *a_str, const char a_delim) {
 }
 
 void set_message(char **tokens) {
+    /** remote_addr:3,status:{0,1},opcode:{1,2,3}**/
     char **remote_addr_char = str_split(tokens[0], ':');
     char **status_char = str_split(tokens[1], ':');
+    char **opcode_char = str_split(tokens[2], ':');
 
     uint16_t remote_addr = strtoul((const char *) remote_addr_char[1], NULL, 16);
     uint8_t status = strtoul((const char *) status_char[1], NULL, 16);
-    //ESP_LOGI("SPLIT", "%s: %hu --> %s: %hhu", remote_addr_char[0], remote_addr, status_char[0], status);
+    uint32_t opcode = strtoul((const char *) opcode_char[1], NULL, 16);
 
     free(remote_addr_char);
     free(status_char);
+    free(opcode_char);
 
-
-    if ((remote_addr >= 0x0002 && remote_addr <= 0xFFFF) && get_info_provisioning()) {
-        send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
-        ESP_LOGW("MESSAGE", "%hu --> 0x%04x", remote_addr, remote_addr);
+    // (remote_addr > 0x0002 && remote_addr <= 0xFFFF) &&
+    if (get_info_provisioning()) {
+        switch (opcode) {
+            case 1:
+                ESP_LOGI("SEND_MESSAGE", "GET");
+                //send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, status);
+                break;
+            case 2:
+                ESP_LOGI("SEND_MESSAGE", "SET");
+                send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
+                break;
+            case 3:
+                ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
+                send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
+                break;
+            default:
+                break;
+        }
+        ESP_LOGI("SEND_MESSAGE", "[addr: 0x%04x, status: %d, opcode: %d]", remote_addr, status, opcode);
     } else {
         ESP_LOGE("MESSAGE", "Node not provisioned or Address not in range");
     }
@@ -157,6 +175,7 @@ static void uart_task(void *args) {
         int len = uart_read_bytes(UART_NUM_1, data, UART_BUF_SIZE, 100 / portTICK_RATE_MS);
 
         if (len > 0) {
+            printf("-------------\n");
             data[len] = 0;
             ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", len, data);
             ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, len, ESP_LOG_INFO);
@@ -166,7 +185,7 @@ static void uart_task(void *args) {
 
             //writeData("SEND_DATA", "Ciao mondo!\n");
             memset(data, 0, UART_BUF_SIZE);
-            printf("--------\n");
+            printf("-------------\n");
         }
     }
     vTaskDelete(NULL);
