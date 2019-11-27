@@ -143,7 +143,7 @@ void send_message(uint16_t remote_addr, uint32_t opcode, uint8_t status) {
     common.ctx.addr = remote_addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
     common.ctx.send_rel = true;
-    common.msg_timeout = 10000;     /* 0 indicates that timeout value from menuconfig will be used */
+    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
     common.msg_role = ROLE_NODE;
 
     set.onoff_set.op_en = false;

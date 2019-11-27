@@ -80,8 +80,27 @@ void uart_init() {
 int writeData(const char *logName, const char *data) {
     const int len = strlen(data);
     const int txBytes = uart_write_bytes(UART_NUM_1, data, len);
-    ESP_LOGI(logName, "Wrote %d bytes", txBytes);
+    //ESP_LOGI(logName, "Wrote %d bytes", txBytes);
     return txBytes;
+}
+
+void send_data_to_pc(const char *data) {
+    const int len = strlen(data);
+    uart_write_bytes(UART_NUM_1, data, len);
+}
+
+void create_message_pc(char *addr, char *status, char *opcode) {
+    char *str3 = malloc(1 + 8 + strlen(addr) + strlen(status) + strlen(opcode));
+
+    strcpy(str3, "a:");
+    strcat(str3, addr);
+    strcat(str3, ",s:");
+    strcat(str3, status);
+    strcat(str3, ",o:");
+    strcat(str3, opcode);
+
+    send_data_to_pc(str3);
+    free(str3);
 }
 
 char **str_split(char *a_str, const char a_delim) {
@@ -135,28 +154,25 @@ void set_message(char **tokens) {
     uint8_t status = strtoul((const char *) status_char[1], NULL, 16);
     uint32_t opcode = strtoul((const char *) opcode_char[1], NULL, 16);
 
-    free(remote_addr_char);
-    free(status_char);
-    free(opcode_char);
-
     // (remote_addr > 0x0002 && remote_addr <= 0xFFFF) &&
     if (get_info_provisioning()) {
-        switch (opcode) {
-            case 1:
-                ESP_LOGI("SEND_MESSAGE", "GET");
-                //send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, status);
-                break;
-            case 2:
-                ESP_LOGI("SEND_MESSAGE", "SET");
-                send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
-                break;
-            case 3:
-                ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
-                send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
-                break;
-            default:
-                break;
+
+        if (opcode == 1) {
+            ESP_LOGI("SEND_MESSAGE", "GET");
+            //send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, status);
+        } else if (opcode == 2) {
+            ESP_LOGI("SEND_MESSAGE", "SET");
+            send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
+        } else if (opcode == 3) {
+            ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
+            send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
         }
+
+        create_message_pc(remote_addr_char[1], status_char[1], opcode_char[1]);
+
+        free(remote_addr_char);
+        free(status_char);
+        free(opcode_char);
         ESP_LOGI("SEND_MESSAGE", "[addr: 0x%04x, status: %d, opcode: %d]", remote_addr, status, opcode);
     } else {
         ESP_LOGE("MESSAGE", "Node not provisioned or Address not in range");
