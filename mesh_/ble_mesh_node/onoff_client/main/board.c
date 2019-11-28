@@ -32,9 +32,11 @@ extern void example_ble_mesh_send_gen_onoff_set(void);
 
 extern uint8_t send_message_unack(uint16_t, uint32_t);
 
-extern void send_message(uint16_t, uint32_t, uint8_t);
+extern uint8_t send_message(uint16_t, uint32_t, uint8_t);
 
 extern bool get_info_provisioning(void);
+
+extern bool my_log;
 
 struct _led_state led_state = {LED_OFF, LED_OFF, LED_G, "green"};
 
@@ -77,30 +79,36 @@ void uart_init() {
     uart_driver_install(UART_NUM_1, UART_BUF_SIZE * 2, 0, 0, NULL, 0);
 }
 
-int writeData(const char *logName, const char *data) {
-    const int len = strlen(data);
-    const int txBytes = uart_write_bytes(UART_NUM_1, data, len);
-    //ESP_LOGI(logName, "Wrote %d bytes", txBytes);
-    return txBytes;
-}
-
 void send_data_to_pc(const char *data) {
     const int len = strlen(data);
     uart_write_bytes(UART_NUM_1, data, len);
 }
 
-void create_message_pc(char *addr, char *status, char *opcode) {
-    char *str3 = malloc(1 + 8 + strlen(addr) + strlen(status) + strlen(opcode));
+void create_message_pc(char *addr, char *status, char *opcode, char *m_id) {
+    char *str3 = malloc(1 + 4 + strlen(addr) + strlen(status) + strlen(opcode) + strlen(m_id));
 
-    strcpy(str3, "a:");
+    strcpy(str3, "-");
     strcat(str3, addr);
-    strcat(str3, ",s:");
+    strcat(str3, ",");
     strcat(str3, status);
-    strcat(str3, ",o:");
+    strcat(str3, ",");
     strcat(str3, opcode);
+    strcat(str3, ",");
+    strcat(str3, m_id);
 
     send_data_to_pc(str3);
     free(str3);
+    ESP_LOGI("LOG", "[addr: %s, status: %s, opcode: %s, id: %s]", addr, status, opcode, m_id);
+}
+
+void register_received_message(uint16_t addr, uint8_t status, uint32_t opcode) {
+    char addr_c[10];
+    char opcode_c[10];
+    char status_c[10];
+    sprintf(addr_c, "%d", addr);
+    sprintf(opcode_c, "%d", opcode);
+    sprintf(status_c, "%d", status);
+    create_message_pc(addr_c, status_c, opcode_c, "-");
 }
 
 char **str_split(char *a_str, const char a_delim) {
@@ -144,9 +152,16 @@ char **str_split(char *a_str, const char a_delim) {
     return result;
 }
 
-void set_message(char **tokens) {
-    /** remote_addr:3,status:{0,1},opcode:{1,2,3}**/
+void command_received(char **tokens) {
     char **remote_addr_char = str_split(tokens[0], ':');
+    char *ptr = strstr(remote_addr_char[0], "log");
+    if (ptr != NULL) {
+        my_log = strtoul((const char *) remote_addr_char[1], NULL, 16) == 1;
+        return;
+    }
+
+    /** addr:3,status:{0,1},opcode:{1,2,3}**/
+    //char **remote_addr_char = str_split(tokens[0], ':');
     char **status_char = str_split(tokens[1], ':');
     char **opcode_char = str_split(tokens[2], ':');
 
@@ -156,24 +171,27 @@ void set_message(char **tokens) {
 
     // (remote_addr > 0x0002 && remote_addr <= 0xFFFF) &&
     if (get_info_provisioning()) {
-
+        uint8_t m_id = 0;
         if (opcode == 1) {
             ESP_LOGI("SEND_MESSAGE", "GET");
-            //send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, status);
+            //m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, status);
         } else if (opcode == 2) {
             ESP_LOGI("SEND_MESSAGE", "SET");
-            send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
+            m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
         } else if (opcode == 3) {
             ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
-            send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
+            m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
         }
 
-        create_message_pc(remote_addr_char[1], status_char[1], opcode_char[1]);
+        if (m_id > 0 && my_log) {
+            char id[10];
+            sprintf(id, "%d", m_id);
+            create_message_pc(remote_addr_char[1], status_char[1], opcode_char[1], (char *) id);
+        }
 
         free(remote_addr_char);
         free(status_char);
         free(opcode_char);
-        ESP_LOGI("SEND_MESSAGE", "[addr: 0x%04x, status: %d, opcode: %d]", remote_addr, status, opcode);
     } else {
         ESP_LOGE("MESSAGE", "Node not provisioned or Address not in range");
     }
@@ -185,7 +203,6 @@ static void uart_task(void *args) {
 
     uint8_t *data = calloc(1, UART_BUF_SIZE);
 
-
     while (1) {
         //Read data from the UART
         int len = uart_read_bytes(UART_NUM_1, data, UART_BUF_SIZE, 100 / portTICK_RATE_MS);
@@ -194,12 +211,11 @@ static void uart_task(void *args) {
             printf("-------------\n");
             data[len] = 0;
             ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", len, data);
-            ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, len, ESP_LOG_INFO);
+            //ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, len, ESP_LOG_INFO);
 
             char **tokens = str_split((char *) data, ',');
-            set_message(tokens);
+            command_received(tokens);
 
-            //writeData("SEND_DATA", "Ciao mondo!\n");
             memset(data, 0, UART_BUF_SIZE);
             printf("-------------\n");
         }
@@ -227,7 +243,7 @@ static void board_emilio_task(void *p) {
             printf("Send Message:\n");
             //send_ble_set(ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, remote_address);
             board_led_operation(LED_G,
-                                send_message_unack(remote_array[index], ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK));
+                                send_message_unack(remote_array[index], ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET));
             if (onoff) {
                 onoff = false;
                 (index == 3 ? index = 0 : index++);
