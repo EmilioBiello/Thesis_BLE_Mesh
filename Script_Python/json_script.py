@@ -19,25 +19,43 @@ print(" --- Writing JSON to a File --- ")
 import datetime
 
 data = {}
-data['people'] = []
-data['people'].append({
-    'name': 'Scott',
-    'website': 'stackabuse.com',
-    'from': 'Nebraska',
-    'datetime': datetime.datetime.now()
-})
-data['people'].append({
-    'name': 'Larry',
-    'website': 'google.com',
-    'from': 'Michigan',
-    'datetime': datetime.datetime.now()
-})
-data['people'].append({
-    'name': 'Tim',
-    'website': 'apple.com',
-    'from': 'Alabama',
-    'datetime': datetime.datetime.now()
-})
+
+
+def update_data(name, website, country, now):
+    if not bool(data):
+        data['people'] = []
+
+    data['people'].append({
+        'name': name,
+        'website': website,
+        'from': country,
+        'datetime': now
+    })
+
+
+update_data('Scott', 'stackabuse.com', 'Nebraska', datetime.datetime.now())
+update_data('Larry', 'google.com', 'Michigan', datetime.datetime.now())
+update_data('Tim', 'apple.com', 'Alabama', datetime.datetime.now())
+
+
+# data['people'].append({
+#     'name': 'Scott',
+#     'website': 'stackabuse.com',
+#     'from': 'Nebraska',
+#     'datetime': datetime.datetime.now()
+# })
+# data['people'].append({
+#     'name': 'Larry',
+#     'website': 'google.com',
+#     'from': 'Michigan',
+#     'datetime': datetime.datetime.now()
+# })
+# data['people'].append({
+#     'name': 'Tim',
+#     'website': 'apple.com',
+#     'from': 'Alabama',
+#     'datetime': datetime.datetime.now()
+# })
 
 
 # Allow to serialize datetime into JSON string
@@ -71,5 +89,3 @@ with open('data.json') as json_file:
     print('Date:', date_time_obj.date())
     print('Time:', date_time_obj.time())
     print('Date-time:', date_time_obj)
-
-
