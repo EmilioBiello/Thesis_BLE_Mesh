@@ -34,6 +34,8 @@ extern uint8_t send_message_unack(uint16_t, uint32_t);
 
 extern uint8_t send_message(uint16_t, uint32_t, uint8_t);
 
+extern void send_get_message(uint16_t addr);
+
 extern bool get_info_provisioning(void);
 
 extern bool my_log;
@@ -111,15 +113,10 @@ void register_received_message(uint16_t addr, uint8_t status, uint32_t opcode) {
     create_message_pc(addr_c, status_c, opcode_c, "-");
 }
 
-char **str_split(char *a_str, const char a_delim) {
-    char **result = 0;
+uint8_t count_tokens(char *a_str, const char a_delim) {
     size_t count = 0;
     char *tmp = a_str;
     char *last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
-
     /* Count how many elements will be extracted. */
     while (*tmp) {
         if (a_delim == *tmp) {
@@ -128,12 +125,25 @@ char **str_split(char *a_str, const char a_delim) {
         }
         tmp++;
     }
+
     /* Add space for trailing token. */
     count += last_comma < (a_str + strlen(a_str) - 1);
 
     /* Add space for terminating null string so caller
        knows where the list of returned strings ends. */
     count++;
+
+    return count;
+}
+
+char **str_split(char *a_str, const char a_delim) {
+    char **result = 0;
+    size_t count = 0;
+    char delim[2];
+    delim[0] = a_delim;
+    delim[1] = 0;
+
+    count = count_tokens(a_str, a_delim);
 
     result = malloc(sizeof(char *) * count);
 
@@ -149,21 +159,31 @@ char **str_split(char *a_str, const char a_delim) {
         assert(idx == count - 1);
         *(result + idx) = 0;
     }
+
     return result;
 }
 
-void command_received(char **tokens) {
+void command_received(char **tokens, size_t count) {
+    /** addr:3,status:{0,1},opcode:{1,2,3}**/
+    count = count - 2;// count indica il numero di elementi
     char **remote_addr_char = str_split(tokens[0], ':');
-    char *ptr = strstr(remote_addr_char[0], "log");
-    if (ptr != NULL) {
+
+    if (count == 0) {
         my_log = strtoul((const char *) remote_addr_char[1], NULL, 16) == 1;
         return;
     }
 
-    /** addr:3,status:{0,1},opcode:{1,2,3}**/
-    //char **remote_addr_char = str_split(tokens[0], ':');
-    char **status_char = str_split(tokens[1], ':');
-    char **opcode_char = str_split(tokens[2], ':');
+    char **status_char;
+    char **opcode_char;
+
+    if (count == 1) {
+        opcode_char = str_split(tokens[1], ':');
+        status_char = opcode_char;
+    } else {
+        opcode_char = str_split(tokens[2], ':');
+        status_char = str_split(tokens[1], ':');
+    }
+
 
     uint16_t remote_addr = strtoul((const char *) remote_addr_char[1], NULL, 16);
     uint8_t status = strtoul((const char *) status_char[1], NULL, 16);
@@ -174,7 +194,7 @@ void command_received(char **tokens) {
         uint8_t m_id = 0;
         if (opcode == 1) {
             ESP_LOGI("SEND_MESSAGE", "GET");
-            //m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, status);
+            send_get_message(remote_addr);
         } else if (opcode == 2) {
             ESP_LOGI("SEND_MESSAGE", "SET");
             m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
@@ -183,15 +203,21 @@ void command_received(char **tokens) {
             m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
         }
 
-        if (m_id > 0 && my_log) {
+
+        if (my_log) {
             char id[10];
             sprintf(id, "%d", m_id);
+            ESP_LOGE(TAG, "%s", __func__);
             create_message_pc(remote_addr_char[1], status_char[1], opcode_char[1], (char *) id);
+            ESP_LOGE(TAG, "%s", __func__);
         }
 
+
         free(remote_addr_char);
-        free(status_char);
         free(opcode_char);
+        if (count != 1){
+            free(status_char);
+        }
     } else {
         ESP_LOGE("MESSAGE", "Node not provisioned or Address not in range");
     }
@@ -213,8 +239,9 @@ static void uart_task(void *args) {
             ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", len, data);
             //ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, data, len, ESP_LOG_INFO);
 
+            size_t count = count_tokens((char *) data, ',');
             char **tokens = str_split((char *) data, ',');
-            command_received(tokens);
+            command_received(tokens, count);
 
             memset(data, 0, UART_BUF_SIZE);
             printf("-------------\n");

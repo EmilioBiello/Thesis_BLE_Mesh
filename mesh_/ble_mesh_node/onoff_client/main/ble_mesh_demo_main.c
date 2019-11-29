@@ -132,7 +132,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-uint8_t send_message(uint16_t destination_addr, uint32_t opcode, uint8_t status) {
+uint8_t send_message(uint16_t addr, uint32_t opcode, uint8_t status) {
     esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
@@ -141,7 +141,7 @@ uint8_t send_message(uint16_t destination_addr, uint32_t opcode, uint8_t status)
     common.model = onoff_client.model;
     common.ctx.net_idx = node_net_idx;
     common.ctx.app_idx = node_app_idx;
-    common.ctx.addr = destination_addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
+    common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
     common.ctx.send_rel = true;
     common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
@@ -164,7 +164,29 @@ uint8_t send_message(uint16_t destination_addr, uint32_t opcode, uint8_t status)
     }
 }
 
-uint8_t send_message_unack(uint16_t remote_addr, uint32_t opcode) {
+void send_get_message(uint16_t addr) {
+    esp_ble_mesh_client_common_param_t common = {0};
+    esp_ble_mesh_generic_client_get_state_t get_state = {{0}};
+    esp_err_t err;
+
+    common.opcode = ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET;
+    common.model = onoff_client.model;
+    common.ctx.net_idx = node_net_idx;
+    common.ctx.app_idx = node_app_idx;
+    common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
+    common.ctx.send_ttl = 3;
+    common.ctx.send_rel = false;
+    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
+    common.msg_role = ROLE_NODE;
+
+    err = esp_ble_mesh_generic_client_get_state(&common, &get_state);
+
+    if (err) {
+        ESP_LOGE(TAG, "%s: Generic OnOff Set failed", __func__);
+    }
+}
+
+uint8_t send_message_unack(uint16_t addr, uint32_t opcode) {
     esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
@@ -173,14 +195,14 @@ uint8_t send_message_unack(uint16_t remote_addr, uint32_t opcode) {
     common.model = onoff_client.model;
     common.ctx.net_idx = node_net_idx;
     common.ctx.app_idx = node_app_idx;
-    common.ctx.addr = remote_addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
+    common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
     common.ctx.send_rel = false;
     common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
     common.msg_role = ROLE_NODE;
 
     set.onoff_set.op_en = false;
-    set.onoff_set.onoff = remote_onoff;
+    set.onoff_set.onoff = addr;
     set.onoff_set.tid = msg_tid++;
 
     printf("Message: status: %hhu -- receiver_hex: 0x%04x -- receiver: %hu -- tid: %hhu\n", set.onoff_set.onoff,
@@ -231,6 +253,7 @@ void example_ble_mesh_send_gen_onoff_set(void) {
 static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
                                                esp_ble_mesh_generic_client_cb_param_t *param) {
 
+    ESP_LOGW(TAG, "Messaggio Ricevuto");
     ESP_LOGI(TAG, "%s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x",
              __func__, event, param->error_code, param->params->ctx.addr, param->params->opcode);
 
