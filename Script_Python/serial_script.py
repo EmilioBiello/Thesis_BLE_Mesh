@@ -12,7 +12,11 @@ port = "/dev/ttyUSB1"
 baud = 115200
 data = {}
 event = Event()
-regular_expresion = "^addr:(0x)[a-fA-F0-9]{4}|[0-9]{0,2},status:[0,1],opcode:[1-3]"
+regular_expresion_set = "^addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),status:[0-9],opcode:[2,3]$"
+regular_expresion_get = "^addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),opcode:1$"
+regular_expresion_command = "^(e|p|q)$"
+regular_expresion_log = "^log:(0|1)$"
+
 save_data = False
 default_0 = "addr:0x0003,status:0,opcode:2"
 default_1 = "addr:0x0003,status:1,opcode:2"
@@ -44,8 +48,8 @@ def write_on_serial():
         try:
             command = input("Insert command to send to esp32: \n")
 
-            if re.search(regular_expresion, command) or re.search("^[e,p,q]{1}$", command) or re.search(
-                    "^log:[0,1]{1}$", command):
+            if re.search(regular_expresion_set, command) or re.search(regular_expresion_get, command) or re.search(
+                    regular_expresion_command, command) or re.search(regular_expresion_log, command):
                 if command == 'q' or command == 'e':
                     if command == 'q':
                         save_data = True
