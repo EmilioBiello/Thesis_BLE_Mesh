@@ -154,10 +154,10 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
 //            esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(data), &data);
 //            ESP_LOGW(TAG, "MESSAGGIO INVIATO --> data: 0x%08x", data);
 
-            ESP_LOGW(TAG, "MESSAGGIO DA INVIARE");
+
             esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
                                                sizeof(srv->state.onoff), &srv->state.onoff);
-            ESP_LOGW(TAG, "MESSAGGIO INVIATO --> data: 0x%08x", srv->state.onoff);
+
             break;
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET:
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK:
@@ -168,17 +168,18 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
                 srv->state.onoff = set->onoff;
             }
 
-
-            printf("TID: %hhu\n", set->tid); // Presente solo nem mex SET
-            int size = sizeof(srv->state.onoff);
-            printf("[INFO] length: %d data %hhu send_rel: %d\n\n", size, srv->state.onoff, ctx->send_rel);
-
             if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
-                printf("%s [Send Status message] add: %d stauts: %d\n", __func__, ctx->addr, srv->state.onoff);
-                ESP_LOGW(TAG, "MESSAGGIO DA INVIARE");
+                uint8_t m_id = set->tid; // presente solo nei mex di tipo SET
+                printf("%s [Send Status message] add: %d stauts: %d ,m_id: %d\n", __func__, ctx->addr,
+                       srv->state.onoff, m_id);
+
                 esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
-                                                   sizeof(srv->state.onoff), &srv->state.onoff);
-                ESP_LOGW(TAG, "MESSAGGIO INVIATO");
+                                                   sizeof(m_id), &m_id);
+
+/*                esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
+                                                   sizeof(srv->state.onoff), &srv->state.onoff);*/
+
+
             }
             if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
                 printf("2.1 publish\n");
