@@ -130,7 +130,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-uint8_t send_message(uint16_t addr, uint32_t opcode, int16_t level) {
+uint8_t send_message(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) {
     esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
@@ -141,7 +141,7 @@ uint8_t send_message(uint16_t addr, uint32_t opcode, int16_t level) {
     common.ctx.app_idx = node_app_idx;
     common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
-    common.ctx.send_rel = true;
+    common.ctx.send_rel = send_rel;
     common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
     common.msg_role = ROLE_NODE;
 
@@ -151,6 +151,8 @@ uint8_t send_message(uint16_t addr, uint32_t opcode, int16_t level) {
 
     printf("Message: status: %hd -- receiver_hex: 0x%04x -- receiver: %hu -- tid %hhu\n", set.level_set.level,
            common.ctx.addr, common.ctx.addr, set.level_set.tid);
+    printf("level: %d - delta: %d - onoff: %d - move: %d - power: %d", set.level_set.level, set.delta_set.level,
+           set.onoff_set.onoff, set.move_set.delta_level, set.power_level_set.power);
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set);
     if (err) {

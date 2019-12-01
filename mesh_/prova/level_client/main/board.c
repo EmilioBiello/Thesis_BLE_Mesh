@@ -23,7 +23,7 @@
 #define  ESP_INTR_FLAG_DEFAULT 0
 
 
-extern uint8_t send_message(uint16_t addr, uint32_t opcode, int16_t level);
+extern uint8_t send_message(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel);
 
 struct _led_state led_state = {LED_OFF, LED_OFF, LED_G, "green"};
 
@@ -61,14 +61,21 @@ void IRAM_ATTR gpio_isr_handler(void *arg) {
 }
 
 static void board_emilio_task(void *p) {
-    int level = INT_MAX;
-    uint8_t addr = 0x0003;
+    uint level = UINT16_MAX;
+    bool send_rel = true;
+    uint8_t addr = 0x0004;
     while (1) {
         if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE) {
             printf("Send Message:\n");
-            printf("Level: %d", level);
+
+            if (send_rel) {
+                send_rel = false;
+            } else {
+                send_rel = true;
+            }
+            printf("Level: %d ---- ack: %d", level, send_rel);
             //send_ble_set(ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, remote_address);
-            board_led_operation(LED_G, send_message(addr, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level));
+            board_led_operation(LED_G, send_message(addr, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET, level, send_rel));
         }
     }
 }
