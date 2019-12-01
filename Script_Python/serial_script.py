@@ -12,10 +12,10 @@ port = "/dev/ttyUSB1"
 baud = 115200
 data = {}
 event = Event()
-regular_expresion_set = "^addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),status:[0-9],opcode:[2,3]$"
-regular_expresion_get = "^addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),opcode:1$"
 regular_expresion_command = "^(e|p|q)$"
-regular_expresion_log = "^log:(0|1)$"
+regular_expresion_set_get = "^@,addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4})(,status:[0,1],opcode:[2,3]){0,1}$"
+regular_expresion_rule = "^&,n_mex:[0-9]{1,2},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[1-9]$"
+regular_expresion_log = "^#,log:(0|1)$"
 
 save_data = False
 default_0 = "addr:0x0003,status:0,opcode:2"
@@ -34,10 +34,10 @@ def write_on_serial():
     counter = 0
     while True:
         print('\x1b[0;33;40m' + "******" + '\x1b[0m')
-        print(" ******\taddr:0x0004,status:1,opcode:3\t******")
-        print("- remote_addr: {0xFFFF, 0xc001, 3, 0x0004}")
-        print("- status: {0 --> off, 1 --> on}")
-        print("- opcode: {1 --> GET, 2 --> SET, 3 --> SET_UNACK}")
+        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1 }\n")
+        print(" - SET mex: { @,addr:0x0004,status:1,opcode:2 }\n")
+        print(" - GET mex: {@,addr:0x0004}\n")
+        print(" - send LOG to PC: {#,log:1}\n")
         print("*** " + '\x1b[0;33;40m' + "print JSON data" + '\x1b[0m' + ": \'" +
               '\x1b[1;31;40m' + "p" + '\x1b[0m' + "\' ***")
         print("*** " + '\x1b[0;33;40m' + "save and exit" + '\x1b[0m' + ": \'" +
@@ -48,8 +48,8 @@ def write_on_serial():
         try:
             command = input("Insert command to send to esp32: \n")
 
-            if re.search(regular_expresion_set, command) or re.search(regular_expresion_get, command) or re.search(
-                    regular_expresion_command, command) or re.search(regular_expresion_log, command):
+            if re.search(regular_expresion_command, command) or re.search(regular_expresion_set_get, command) or \
+                    re.search(regular_expresion_rule, command) or re.search(regular_expresion_log, command):
                 if command == 'q' or command == 'e':
                     if command == 'q':
                         save_data = True
