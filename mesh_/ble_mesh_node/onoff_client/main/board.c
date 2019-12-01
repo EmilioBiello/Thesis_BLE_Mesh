@@ -103,6 +103,18 @@ void create_message_pc(char *addr, char *status, char *opcode, char *m_id) {
     ESP_LOGI("LOG", "[addr: %s, status: %s, opcode: %s, id: %s]", addr, status, opcode, m_id);
 }
 
+void create_message_rapid(char *opcode, char *m_id) {
+    char *str3 = malloc(1 + 1 + strlen(opcode) + strlen(m_id));// 1 end char; 1 for comma
+
+    strcpy(str3, opcode);
+    strcat(str3, ",");
+    strcat(str3, m_id);
+
+    send_data_to_pc(str3);
+    free(str3);
+    ESP_LOGI("PC", "[opcode: %s, id: %s]", opcode, m_id);
+}
+
 void register_received_message(uint16_t addr, uint8_t status, uint32_t opcode) {
     char addr_c[10];
     char opcode_c[10];
@@ -113,6 +125,12 @@ void register_received_message(uint16_t addr, uint8_t status, uint32_t opcode) {
     create_message_pc(addr_c, status_c, opcode_c, "-");
 }
 
+/**
+ * Conta il numero di virgole presenti nella regola ricevuta e aggiunge 2 valori in più per end char
+ * @param a_str
+ * @param a_delim
+ * @return
+ */
 uint8_t count_tokens(char *a_str, const char a_delim) {
     size_t count = 0;
     char *tmp = a_str;
@@ -163,63 +181,137 @@ char **str_split(char *a_str, const char a_delim) {
     return result;
 }
 
-void command_received(char **tokens, size_t count) {
-    /** addr:3,status:{0,1},opcode:{1,2,3}**/
-    count = count - 2;// count indica il numero di elementi
-    char **remote_addr_char = str_split(tokens[0], ':');
+void config_my_log(char *tokens) {
+    char **log_char = str_split(tokens, ':');
+    my_log = strtoul((const char *) log_char[1], NULL, 2) == 1;
+    free(log_char);
+}
 
-    if (count == 0) {
-        my_log = strtoul((const char *) remote_addr_char[1], NULL, 16) == 1;
-        return;
+void execute_rule(uint16_t n_mex, uint8_t addr, uint8_t delay) {
+    uint8_t status = 1;
+    uint8_t m_id = 0;
+    char id_c[8];
+    char addr_c[8];
+    sprintf(addr_c, "%d", addr);
+
+    for (int i = 0; i < n_mex; ++i) {
+        //printf("[addr: %hhu, status: %hhu, opcode: SET, id: %d]\n", addr, status, i);
+
+        m_id = send_message(addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
+        sprintf(id_c, "%d", m_id);
+
+        create_message_rapid("SET", (char *) id_c);
+
+        if (status == 0) {
+            status = 1;
+        } else {
+            status = 0;
+        }
+        vTaskDelay(delay * 1000 / portTICK_PERIOD_MS);
     }
+}
 
-    char **status_char;
-    char **opcode_char;
+void config_rule(char *n_mex_c, char *addr_c, char *delay_c) {
+    char **n_mex_char = str_split(n_mex_c, ':');
+    char **addr_char = str_split(addr_c, ':');
+    char **delay_char = str_split(delay_c, ':');
 
-    if (count == 1) {
-        opcode_char = str_split(tokens[1], ':');
-        status_char = opcode_char;
-    } else {
-        opcode_char = str_split(tokens[2], ':');
-        status_char = str_split(tokens[1], ':');
-    }
+    uint16_t n_mex = strtoul((const char *) n_mex_char[1], NULL, 10);
+    uint8_t addr = strtoul((const char *) addr_char[1], NULL, 16);
+    uint32_t delay = strtoul((const char *) delay_char[1], NULL, 10);
 
+    printf("n_mex: %hu\n", n_mex);
+    printf("addr: %hhu\n", addr);
+    printf("delay: %u\n", delay);
 
-    uint16_t remote_addr = strtoul((const char *) remote_addr_char[1], NULL, 16);
-    uint8_t status = strtoul((const char *) status_char[1], NULL, 16);
-    uint32_t opcode = strtoul((const char *) opcode_char[1], NULL, 16);
+    free(n_mex_char);
+    free(addr_char);
+    free(delay_char);
 
-    // (remote_addr > 0x0002 && remote_addr <= 0xFFFF) &&
+    execute_rule(n_mex, addr, delay);
+}
+
+void config_single_mex_set(char *addr_c, char *status_c, char *opcode_c) {
+    char **addr_char = str_split(addr_c, ':');
+    char **status_char = str_split(status_c, ':');
+    char **opcode_char = str_split(opcode_c, ':');
+
+    uint16_t addr = strtoul((const char *) addr_char[1], NULL, 16);
+    uint8_t status = strtoul((const char *) status_char[1], NULL, 10);
+    uint32_t opcode = strtoul((const char *) opcode_char[1], NULL, 10);
+
+    printf("addr: %hu\n", addr);
+    printf("status: %hhu\n", status);
+    printf("opcode: %u\n", opcode);
+
     if (get_info_provisioning()) {
         uint8_t m_id = 0;
-        if (opcode == 1) {
-            ESP_LOGI("SEND_MESSAGE", "GET");
-            send_get_message(remote_addr);
-        } else if (opcode == 2) {
+        if (opcode == 2) {
             ESP_LOGI("SEND_MESSAGE", "SET");
-            m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
+            m_id = send_message(addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, status);
         } else if (opcode == 3) {
             ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
-            m_id = send_message(remote_addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
+            m_id = send_message(addr, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, status);
         }
-
 
         if (my_log) {
             char id[10];
             sprintf(id, "%d", m_id);
-            ESP_LOGE(TAG, "%s", __func__);
-            create_message_pc(remote_addr_char[1], status_char[1], opcode_char[1], (char *) id);
-            ESP_LOGE(TAG, "%s", __func__);
-        }
-
-
-        free(remote_addr_char);
-        free(opcode_char);
-        if (count != 1){
-            free(status_char);
+            create_message_pc(addr_char[1], status_char[1], opcode_char[1], (char *) id);
         }
     } else {
         ESP_LOGE("MESSAGE", "Node not provisioned or Address not in range");
+    }
+
+    free(addr_char);
+    free(status_char);
+    free(opcode_char);
+}
+
+void config_single_mex_get(char *addr_c) {
+    char **addr_char = str_split(addr_c, ':');
+
+    uint16_t addr = strtoul((const char *) addr_char[1], NULL, 16);
+    printf("addr: %hu\n", addr);
+
+    if (get_info_provisioning()) {
+        send_get_message(addr);
+        if (my_log) {
+            create_message_pc(addr_char[1], "1", "1", "0");
+        }
+    }
+
+    free(addr_char);
+}
+
+void find_strarted_char(char **tokens, int count) {
+    count = count - 2;
+    printf("First char: %c, count: %d\n", tokens[0][0], count);
+    switch (tokens[0][0]) {
+        case '#':
+            config_my_log(tokens[1]);
+            printf("LOG\n");
+            break;
+
+        case '@':
+            if (count == 1) {
+                config_single_mex_get(tokens[1]);
+                printf("GET\n");
+            } else if (count == 3) {
+                config_single_mex_set(tokens[1], tokens[2], tokens[3]);
+                printf("SET\n");
+            }
+            printf("Single_mex\n");
+            break;
+
+        case '&':
+            config_rule(tokens[1], tokens[2], tokens[3]);
+            printf("Rule\n");
+            break;
+
+        default:
+            printf("Errore\n");
+            break;
     }
 }
 
@@ -241,7 +333,7 @@ static void uart_task(void *args) {
 
             size_t count = count_tokens((char *) data, ',');
             char **tokens = str_split((char *) data, ',');
-            command_received(tokens, count);
+            find_strarted_char(tokens, count);
 
             memset(data, 0, UART_BUF_SIZE);
             printf("-------------\n");

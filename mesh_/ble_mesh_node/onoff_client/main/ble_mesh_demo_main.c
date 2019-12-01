@@ -27,7 +27,6 @@
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 static uint16_t node_net_idx = ESP_BLE_MESH_KEY_UNUSED;
 static uint16_t node_app_idx = ESP_BLE_MESH_KEY_UNUSED;
-static uint8_t remote_onoff = LED_ON;
 static uint8_t msg_tid = 0x1;
 
 /* The remote node address shall be input through UART1, see board.c */
@@ -143,7 +142,7 @@ uint8_t send_message(uint16_t addr, uint32_t opcode, uint8_t status) {
     common.ctx.app_idx = node_app_idx;
     common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
-    common.ctx.send_rel = true;
+    common.ctx.send_rel = false;
     common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
     common.msg_role = ROLE_NODE;
 
@@ -151,15 +150,14 @@ uint8_t send_message(uint16_t addr, uint32_t opcode, uint8_t status) {
     set.onoff_set.onoff = status;
     set.onoff_set.tid = msg_tid++;
 
-    printf("Message: status: %hhu -- receiver_hex: 0x%04x -- receiver: %hu -- tid %hhu\n", set.onoff_set.onoff,
-           common.ctx.addr, common.ctx.addr, set.onoff_set.tid);
+    ESP_LOGW("SEND_MEX", "Message: status: %hhu -- destination: 0x%04x -- tid %hhu\n", set.onoff_set.onoff,
+             common.ctx.addr, set.onoff_set.tid);
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set);
     if (err) {
         ESP_LOGE(TAG, "%s: Generic OnOff Set failed", __func__);
         return 0;
     } else {
-        remote_onoff = !remote_onoff;
         return set.onoff_set.tid;
     }
 }
@@ -212,42 +210,8 @@ uint8_t send_message_unack(uint16_t addr, uint32_t opcode) {
     err = esp_ble_mesh_generic_client_set_state(&common, &set);
     if (err) {
         ESP_LOGE(TAG, "%s: Generic OnOff Set failed", __func__);
-    } else {
-        remote_onoff = !remote_onoff;
     }
     return set.onoff_set.onoff;
-}
-
-void example_ble_mesh_send_gen_onoff_set(void) {
-    esp_ble_mesh_generic_client_set_state_t set = {{0}};
-    esp_ble_mesh_client_common_param_t common = {0};
-    esp_err_t err;
-
-    common.opcode = ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK;
-    common.model = onoff_client.model;
-    common.ctx.net_idx = node_net_idx;
-    common.ctx.app_idx = node_app_idx;
-    common.ctx.addr = 0xFFFF;   /* to all nodes */
-    common.ctx.send_ttl = 3;
-    common.ctx.send_rel = false;
-    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
-    common.msg_role = ROLE_NODE;
-
-    set.onoff_set.op_en = false;
-    set.onoff_set.onoff = remote_onoff;
-    set.onoff_set.tid = msg_tid++;
-
-    printf("Message: status: %hhu -- sender: %hhu -- receiver: %hu -- tid%hhu\n", set.onoff_set.onoff,
-           common.model->element_idx,
-           common.ctx.addr, set.onoff_set.tid);
-
-
-    err = esp_ble_mesh_generic_client_set_state(&common, &set);
-    if (err) {
-        ESP_LOGE(TAG, "%s: Generic OnOff Set failed", __func__);
-    } else {
-        remote_onoff = !remote_onoff;
-    }
 }
 
 static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
@@ -261,6 +225,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
         register_received_message(param->params->ctx.addr, param->status_cb.onoff_status.present_onoff,
                                   param->params->opcode);
 
+
     switch (event) {
         case ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT:
             ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT");
@@ -271,6 +236,9 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT:
             ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT");
+            char m_id[8];
+            sprintf(m_id, "%d", param->status_cb.onoff_status.present_onoff);
+            create_message_rapid("STATUS", m_id);
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
                 ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, onoff %d",
                          param->status_cb.onoff_status.present_onoff);
@@ -284,7 +252,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT");
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
                 /* If failed to get the response of Generic OnOff Set, resend Generic OnOff Set  */
-                example_ble_mesh_send_gen_onoff_set();
+                //example_ble_mesh_send_gen_onoff_set();
             }
             break;
         default:

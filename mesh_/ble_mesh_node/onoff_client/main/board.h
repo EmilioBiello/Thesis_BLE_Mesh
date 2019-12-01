@@ -30,4 +30,6 @@ void board_init(void);
 
 void register_received_message(uint16_t addr, uint8_t status, uint32_t opcode);
 
+void create_message_rapid(char *opcode, char *m_id);
+
 #endif
