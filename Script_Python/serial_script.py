@@ -20,9 +20,8 @@ regular_expresion_log = "^#,log:(0|1)$"
 save_data = False
 default_0 = "addr:0x0003,status:0,opcode:2"
 default_1 = "addr:0x0003,status:1,opcode:2"
-command_send = ""
 
-esp32 = serial.Serial(port, baud, timeout=0)
+esp32 = serial.Serial(port, baud, timeout=0.005)
 time.sleep(1)  # give the connection a second to settle
 if esp32.isOpen():
     print(esp32.name + " is open...")
@@ -30,14 +29,13 @@ if esp32.isOpen():
 
 def write_on_serial():
     global save_data
-    global command_send
-    counter = 0
+
     while True:
         print('\x1b[0;33;40m' + "******" + '\x1b[0m')
-        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1 }\n")
-        print(" - SET mex: { @,addr:0x0004,status:1,opcode:2 }\n")
-        print(" - GET mex: {@,addr:0x0004}\n")
-        print(" - send LOG to PC: {#,log:1}\n")
+        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1 }")
+        print(" - SET mex: { @,addr:0x0004,status:1,opcode:2 }")
+        print(" - GET mex: {@,addr:0x0004}")
+        print(" - send LOG to PC: {#,log:1}")
         print("*** " + '\x1b[0;33;40m' + "print JSON data" + '\x1b[0m' + ": \'" +
               '\x1b[1;31;40m' + "p" + '\x1b[0m' + "\' ***")
         print("*** " + '\x1b[0;33;40m' + "save and exit" + '\x1b[0m' + ": \'" +
@@ -60,9 +58,8 @@ def write_on_serial():
                     print_data_as_json()
                 else:
                     esp32.write(command.encode())
-                    command_send = command
-                    counter += 1
-                    print('\x1b[0;33;40m' + "******" + str(counter) + '\x1b[0m' + "\n")
+                    add_command_to_dictionary(command)
+                    print('\x1b[0;33;40m' + "******" + '\x1b[0m' + "\n")
             else:
                 print('\x1b[6;30;41m' + "Wrong command" + '\x1b[0m')
 
@@ -72,13 +69,15 @@ def write_on_serial():
 
 
 def read_from_serial():
+    count = 0
     while True:
         received_data = esp32.readline()
         if len(received_data) > 0:
+            update_dictionary(dt.datetime.now(), received_data.decode("utf-8"))
+            count += 1
+            print("************ " + str(count))
             # print('\x1b[1;31;40m' + "************" + '\x1b[0m   ')
             # print("Receiving...\n" + received_data.decode("utf-8"))
-            update_dictionary(dt.datetime.now(), received_data.decode("utf-8"))
-            print('\x1b[1;31;40m' + "************" + '\x1b[0m')
 
         if event.is_set():
             if save_data:
@@ -92,25 +91,43 @@ def read_from_serial():
             break
 
 
+def add_command_to_dictionary(command):
+    if re.search(regular_expresion_rule, command):
+        command_list = command.split(",")
+
+        data['command'] = [{
+            'first_char': command_list[0],
+            'n_mex': command_list[1].split(":")[1],
+            'addr': command_list[2].split(":")[1],
+            'delay': command_list[3].split(":")[1]
+        }]
+        data['messages'] = []
+        data['error'] = []
+
+
 def update_dictionary(now, message):
-    mex_list = message.split(",")
-    mex_list[0] = mex_list[0].replace("-", "")
-    size = len(mex_list)
-
-    if not bool(data):
-        data['message'] = []
-
-    data['message'].append({
-        'command': command_send,
-        'receiver': '' if size < 1 else mex_list[0],
-        'status': '' if size < 2 else mex_list[1],
-        'type_mex': '' if size < 3 else mex_list[2],
-        'message_id': '' if size < 4 else mex_list[3],
+    data['messages'].append({
+        'type_mex': message,
+        'message_id': message,
+        'len': len(message),
         'time': now
     })
 
 
+# mex_list[0] = mex_list[0].replace("-", "")
+# size = len(mex_list)
+
+# data['messages'].append({
+#     'receiver': '' if size < 1 else mex_list[0],
+#     'status': '' if size < 2 else mex_list[1],
+#     'type_mex': '' if size < 3 else mex_list[2],
+#     'message_id': '' if size < 4 else mex_list[3],
+#     'time': now
+# })
+
 # Allow to serialize datetime into JSON string
+
+
 def convert_timestamp(item_data_object):
     if isinstance(item_data_object, dt.datetime):
         return item_data_object.__str__()
@@ -118,6 +135,7 @@ def convert_timestamp(item_data_object):
 
 def save_json_data():
     path = './json_file/json_data_' + dt.datetime.now().strftime("%y-%m-%d_%H-%M") + '.json'
+    print(path)
     with open(path, 'w', encoding='utf-8') as json_file:
         json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=4)
 
