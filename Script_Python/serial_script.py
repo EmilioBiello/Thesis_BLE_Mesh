@@ -14,7 +14,7 @@ data = {}
 event = Event()
 regular_expresion_command = "^(e|p|q)$"
 regular_expresion_set_get = "^@,addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4})(,status:[0,1],opcode:[2,3]){0,1}$"
-regular_expresion_rule = "^&,n_mex:[0-9]{1,2},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[1-9]$"
+regular_expresion_rule = "^&,n_mex:[0-9]{1,2},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6}$"
 regular_expresion_log = "^#,log:(0|1)$"
 
 save_data = False
@@ -32,7 +32,7 @@ def write_on_serial():
 
     while True:
         print('\x1b[0;33;40m' + "******" + '\x1b[0m')
-        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1 }")
+        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000 (ms)}")
         print(" - SET mex: { @,addr:0x0004,status:1,opcode:2 }")
         print(" - GET mex: {@,addr:0x0004}")
         print(" - send LOG to PC: {#,log:1}")
@@ -95,23 +95,28 @@ def add_command_to_dictionary(command):
     if re.search(regular_expresion_rule, command):
         command_list = command.split(",")
 
-        data['command'] = [{
+        data['command'] = {
             'first_char': command_list[0],
             'n_mex': command_list[1].split(":")[1],
             'addr': command_list[2].split(":")[1],
             'delay': command_list[3].split(":")[1]
-        }]
+        }
         data['messages'] = []
         data['error'] = []
+        data['status_analysis'] = 0
 
 
 def update_dictionary(now, message):
+    size = len(message)
     data['messages'].append({
         'type_mex': message,
         'message_id': message,
-        'len': len(message),
+        'len': size,
         'time': now
     })
+
+    if size < 3 or size > 5:
+        data['error'].append({'string': message})
 
 
 # mex_list[0] = mex_list[0].replace("-", "")
