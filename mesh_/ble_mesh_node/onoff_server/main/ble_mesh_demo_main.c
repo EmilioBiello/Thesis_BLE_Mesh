@@ -61,11 +61,11 @@ static esp_ble_mesh_gen_onoff_srv_t onoff_server_1 = {
         .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
 };
 
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_2, 2 + 3, ROLE_NODE);
+/*ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_2, 2 + 3, ROLE_NODE);
 static esp_ble_mesh_gen_onoff_srv_t onoff_server_2 = {
         .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
         .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
-};
+};*/
 
 static esp_ble_mesh_model_t root_models[] = {
         ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
@@ -76,9 +76,9 @@ static esp_ble_mesh_model_t extend_model_0[] = {
         ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_1, &onoff_server_1),
 };
 
-static esp_ble_mesh_model_t extend_model_1[] = {
+/*static esp_ble_mesh_model_t extend_model_1[] = {
         ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_2, &onoff_server_2),
-};
+};*/
 
 static esp_ble_mesh_elem_t elements[] = {
         ESP_BLE_MESH_ELEMENT(0, root_models, ESP_BLE_MESH_MODEL_NONE),
@@ -146,21 +146,14 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
 
     switch (ctx->recv_op) {
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET:
-            printf("1 ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET\n");
-            printf("1.1 Send Status message\n");
-
-//            ESP_LOGW(TAG, "MESSAGGIO DA INVIARE");
-//            uint data = 1111111111111111111;
-//            esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(data), &data);
-//            ESP_LOGW(TAG, "MESSAGGIO INVIATO --> data: 0x%08x", data);
-
-
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET");
             esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
                                                sizeof(srv->state.onoff), &srv->state.onoff);
 
             break;
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET:
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK:
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET or ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK");
             if (set->op_en == false) {
                 srv->state.onoff = set->onoff;
             } else {
@@ -170,8 +163,8 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
 
             if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
                 uint8_t m_id = set->tid; // presente solo nei mex di tipo SET
-                printf("%s [Send Status message] add: %d stauts: %d ,m_id: %d\n", __func__, ctx->addr,
-                       srv->state.onoff, m_id);
+                ESP_LOGW(TAG, "[Send Status message] add: %d stauts: %d , m_id: %d", ctx->addr,
+                         srv->state.onoff, m_id);
 
                 esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
                                                    sizeof(m_id), &m_id);
@@ -179,14 +172,11 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
 /*                esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
                                                    sizeof(srv->state.onoff), &srv->state.onoff);*/
 
-
             }
             if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
-                printf("2.1 publish\n");
                 esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(srv->state.onoff),
                                            &srv->state.onoff, ROLE_NODE);
             }
-            //printf("2.2 cambio status led\n");
             example_change_led_state(model, ctx, srv->state.onoff);
             break;
         default:

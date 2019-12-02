@@ -24,8 +24,10 @@ struct _led_state {
     char *name;
 };
 
-void board_led_operation(uint8_t pin, uint8_t onoff);
+void board_led_operation(uint8_t pin, uint8_t status_led);
 
 void board_init(void);
+
+void create_message_rapid(char *opcode, char *level);
 
 #endif

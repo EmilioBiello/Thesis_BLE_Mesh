@@ -217,13 +217,12 @@ uint8_t send_message_unack(uint16_t addr, uint32_t opcode) {
 static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
                                                esp_ble_mesh_generic_client_cb_param_t *param) {
 
-    ESP_LOGW(TAG, "Messaggio Ricevuto");
-    ESP_LOGI(TAG, "%s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x",
+        ESP_LOGW(TAG, "Messaggio Ricevuto --> %s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x",
              __func__, event, param->error_code, param->params->ctx.addr, param->params->opcode);
 
-    if (my_log)
+/*    if (my_log)
         register_received_message(param->params->ctx.addr, param->status_cb.onoff_status.present_onoff,
-                                  param->params->opcode);
+                                  param->params->opcode);*/
 
 
     switch (event) {
@@ -236,10 +235,10 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT:
             ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT");
-            char m_id[8];
-            sprintf(m_id, "%d", param->status_cb.onoff_status.present_onoff);
-            create_message_rapid("STATUS", m_id);
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
+                char m_id[8];
+                sprintf(m_id, "%d", param->status_cb.onoff_status.present_onoff);
+                create_message_rapid("STATUS", m_id);
                 ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, onoff %d",
                          param->status_cb.onoff_status.present_onoff);
             }

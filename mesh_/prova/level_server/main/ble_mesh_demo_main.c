@@ -139,13 +139,9 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
 
     switch (ctx->recv_op) {
         case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET:
-            printf("1 ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET\n");
-            printf("1.1 Send Status message\n");
-
-            ESP_LOGW(TAG, "MESSAGGIO DA INVIARE");
             esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
-                                               sizeof(srv->state.level), &srv->state.level);
-            ESP_LOGW(TAG, "MESSAGGIO INVIATO --> data: 0x%08x", srv->state.level);
+                                               sizeof(srv->state.level), (uint8_t *) &srv->state.level);
+
             break;
         case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET:
         case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK:
@@ -156,24 +152,16 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
                 srv->state.level = set->level;
             }
 
-
-            printf("TID: %hhu\n", set->tid); // Presente solo nem mex SET
-            int size = sizeof(srv->state.level);
-            printf("[INFO] length: %d data %hd send_rel: %d\n\n", size, srv->state.level, ctx->send_rel);
-
             if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
-                printf("%s [Send Status message] add: %d stauts: %d\n", __func__, ctx->addr, srv->state.level);
-                ESP_LOGW(TAG, "MESSAGGIO DA INVIARE");
+                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d", srv->state.level);
                 esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
-                                                   sizeof(srv->state.level), &srv->state.level);
-                ESP_LOGW(TAG, "MESSAGGIO INVIATO");
+                                                   sizeof(srv->state.level), (uint8_t *) &srv->state.level);
             }
             if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
                 printf("2.1 publish\n");
                 esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
-                                           &srv->state.level, ROLE_NODE);
+                                           (uint8_t *) &srv->state.level, ROLE_NODE);
             }
-            //printf("2.2 cambio status led\n");
             example_change_led_state(model, ctx);
             break;
         default:

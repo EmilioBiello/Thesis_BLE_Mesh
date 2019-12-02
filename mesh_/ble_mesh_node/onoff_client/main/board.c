@@ -207,7 +207,7 @@ void execute_rule(uint16_t n_mex, uint8_t addr, uint8_t delay) {
         } else {
             status = 0;
         }
-        vTaskDelay(delay * 1000 / portTICK_PERIOD_MS);
+        vTaskDelay(delay  / portTICK_PERIOD_MS); // delay is milliseconds
     }
 }
 
@@ -390,7 +390,7 @@ static void board_emilio_init() {
 
 void board_init(void) {
     board_led_init();
-    board_emilio_init();
+    //board_emilio_init(); // Gestione bottone disabilitata
 
     uart_init();
     xTaskCreate(uart_task, "uart_task", 2048, NULL, 5, NULL);
