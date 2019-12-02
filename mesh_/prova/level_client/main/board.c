@@ -224,7 +224,7 @@ void command_received(char **tokens, int count) {
                 config_single_mex_get(tokens[1]);
                 printf("GET\n");
             } else if (count == 3) {
-                //config_single_mex_set(tokens[1], tokens[2], tokens[3]);
+                config_single_mex_set(tokens[1], tokens[2], tokens[3]);
                 printf("SET\n");
             }
             printf("Single_mex\n");

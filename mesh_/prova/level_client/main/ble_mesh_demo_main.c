@@ -199,7 +199,8 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 char level[16];
                 sprintf(level, "%d", param->status_cb.level_status.present_level);
                 create_message_rapid("R", level);
-                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d", param->status_cb.level_status.present_level);
+                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d receive_ttl: %d",
+                         param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
             }
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT:
