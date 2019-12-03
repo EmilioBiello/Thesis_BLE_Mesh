@@ -20,7 +20,7 @@ regular_expresion_log = "^#,log:(0|1)$"
 save_data = False
 update_my_dictionary = False
 
-esp32 = serial.Serial(port, baud, timeout=0.005)
+esp32 = serial.Serial(port, baud, timeout=0.0001)
 time.sleep(1)  # give the connection a second to settle
 if esp32.isOpen():
     print(esp32.name + " is open...")
@@ -100,10 +100,10 @@ def add_command_to_dictionary(command):
             'first_char': command_list[0],
             'n_mex': command_list[1].split(":")[1],
             'addr': command_list[2].split(":")[1],
-            'delay': command_list[3].split(":")[1]
+            'delay': command_list[3].split(":")[1],
+            'ack': command_list[4].split(":")[1]
         }
         data['messages'] = []
-        data['error'] = []
         data['status_analysis'] = 0
         update_my_dictionary = True
     elif update_my_dictionary:
@@ -114,14 +114,10 @@ def update_dictionary(now, message):
     if update_my_dictionary:
         size = len(message)
         data['messages'].append({
-            'type_mex': message,
             'message_id': message,
             'len': size,
             'time': now
         })
-
-        if size < 3 or size > 5:
-            data['error'].append({'string': message})
 
 
 # mex_list[0] = mex_list[0].replace("-", "")
