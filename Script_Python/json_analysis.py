@@ -112,8 +112,8 @@ def save_json_data(path, data):
 
 
 def main():
-    #path = "./json_file/json_data_19-12-02_18-12.json"
-    path = get_file_from_directory()
+    path = "./json_file/json_data_19-12-02_19-07.json"
+    #path = get_file_from_directory()
 
     try:
         my_data = first_analysis(path=path)

@@ -13,13 +13,12 @@ baud = 115200
 data = {}
 event = Event()
 regular_expresion_command = "^(e|p|q)$"
-regular_expresion_set_get = "^@,addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4})(,status:[0,1],opcode:[2,3]){0,1}$"
-regular_expresion_rule = "^&,n_mex:[0-9]{1,2},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6}$"
+regular_expresion_set_get = "^@,addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4})(,level:[0-9]{1,3}(,ack:[0|1]){0,1}){0,1}$"
+regular_expresion_rule = "^&,n_mex:[0-9]{1,2},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6},ack:[0|1]$"
 regular_expresion_log = "^#,log:(0|1)$"
 
 save_data = False
-default_0 = "addr:0x0003,status:0,opcode:2"
-default_1 = "addr:0x0003,status:1,opcode:2"
+update_my_dictionary = False
 
 esp32 = serial.Serial(port, baud, timeout=0.005)
 time.sleep(1)  # give the connection a second to settle
@@ -32,9 +31,10 @@ def write_on_serial():
 
     while True:
         print('\x1b[0;33;40m' + "******" + '\x1b[0m')
-        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000 (ms)}")
-        print(" - SET mex: { @,addr:0x0004,status:1,opcode:2 }")
+        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000,ack:0 (ms)}")
         print(" - GET mex: {@,addr:0x0004}")
+        print(" - SET_UNACK mex: { @,addr:0x0004,level:1 }")
+        print(" - SET mex: { @,addr:0x0004,level:1,ack:0 }")
         print(" - send LOG to PC: {#,log:1}")
         print("*** " + '\x1b[0;33;40m' + "print JSON data" + '\x1b[0m' + ": \'" +
               '\x1b[1;31;40m' + "p" + '\x1b[0m' + "\' ***")
@@ -92,6 +92,7 @@ def read_from_serial():
 
 
 def add_command_to_dictionary(command):
+    global update_my_dictionary
     if re.search(regular_expresion_rule, command):
         command_list = command.split(",")
 
@@ -104,19 +105,23 @@ def add_command_to_dictionary(command):
         data['messages'] = []
         data['error'] = []
         data['status_analysis'] = 0
+        update_my_dictionary = True
+    elif update_my_dictionary:
+        update_my_dictionary = False
 
 
 def update_dictionary(now, message):
-    size = len(message)
-    data['messages'].append({
-        'type_mex': message,
-        'message_id': message,
-        'len': size,
-        'time': now
-    })
+    if update_my_dictionary:
+        size = len(message)
+        data['messages'].append({
+            'type_mex': message,
+            'message_id': message,
+            'len': size,
+            'time': now
+        })
 
-    if size < 3 or size > 5:
-        data['error'].append({'string': message})
+        if size < 3 or size > 5:
+            data['error'].append({'string': message})
 
 
 # mex_list[0] = mex_list[0].replace("-", "")
