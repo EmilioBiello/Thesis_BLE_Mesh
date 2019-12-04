@@ -29,30 +29,46 @@ def third_analysis(path):
         data = json.load(json_file)
         errors = data['error_second_analysis']
 
-    if data['status_analysis'] != 2:
+    if data['analysis_status'] != 2:
         raise BaseException('Phase 3 already executed')
 
     lost = 0
     not_sent = 0
-    last = int(errors[0]['index'])
-    for i, item in enumerate(errors):
-        if int(item['index']) - last == 1:
-            not_sent += 1
-            print("Packet {} --> not sent".format(item['index']))
-            # data['error_second_analysis'][i]['string'] = "Message not sent"
-        else:
-            lost += 1
-            print("Packet {} --> TIMEOUT".format(item['index']))
-            # data['error_second_analysis'][i]['string'] = "Error, TIMEOUT"
-        last = int(item['index'])
+    list_lost = list()
+    list_not_sent = list()
+    if len(data['error_second_analysis']) != 0:
+        last = int(errors[0]['index'])
+        for i, item in enumerate(errors):
+            if int(item['index']) - last == 1:
+                if int(item['next_mex']['message_id']) == 0:
+                    not_sent += 1
+                    print("Packet {} --> not sent".format(item['index']))
+                    data['error_second_analysis'][i]['string'] = "Message not sent"
+                    list_not_sent.append(int(item['index']))
+                else:
+                    lost += 1
+                    print("Packet {} --> TIMEOUT".format(item['index']))
+                    data['error_second_analysis'][i]['string'] = "Error, TIMEOUT"
+                    list_lost.append(int(item['index']))
+            else:
+                lost += 1
+                print("Packet {} --> TIMEOUT".format(item['index']))
+                data['error_second_analysis'][i]['string'] = "Error, TIMEOUT"
+                list_lost.append(int(item['index']))
+            last = int(item['index'])
 
-    analysis = data['analysis']
-    analysis['sent_mex'] = int(int(analysis['sent_mex']) - not_sent)
-    analysis['lost_packet'] = int(int(analysis['lost_packet']) - lost)
-    data['analysis'] = analysis
+    data['analysis']['sent_mex'] = int(int(data['command']['n_mex']) - not_sent)
+    data['analysis']['lost_packet'] = int(lost)
+    data['analysis']['list_lost'] = list_lost
+    data['analysis']['list_not_sent'] = list_not_sent
 
     # print_dict_as_json(data)
-    data['status_analysis'] = 3
+    data['analysis_status'] = 3
+    if int(data['analysis']['sent_mex']) - int(data['analysis']['received_mex']) - int(
+            data['analysis']['lost_packet']) == 0:
+        print("Correct analysis")
+    else:
+        print("Error about counting in analysis [lost, sent, received]")
     return data
 
 
@@ -63,11 +79,12 @@ def second_analysis(path):
         command = data['command']
         messages = data['messages']
 
-    if data['status_analysis'] != 1:
+    if len(data['error_first_analysis']) > 0:
+        raise Exception('Error First Analysis not empty')
+
+    if data['analysis_status'] != 1:
         raise BaseException('Phase 2 already executed')
 
-    sent_mex = command['n_mex']
-    # received_mex = len(messages) - int(sent_mex)
     received_mex = 0
 
     list_of_m_id = list()
@@ -82,6 +99,7 @@ def second_analysis(path):
     latencies = list()
     dict_analysis = dict()
     data['error_second_analysis'] = []
+    size_messages = len(messages)
     for m_id in list_of_m_id:
         couple = get_same_element_index(messages, m_id)  # individuo le coppie di messaggi
 
@@ -105,27 +123,28 @@ def second_analysis(path):
                 'difference': difference.total_seconds(),
                 'latency': (difference.total_seconds() / 2)
             }
-            print("m_id: {} --> {}".format(m_id, dict_analysis[m_id]['difference']))
+            # print("m_id: {} --> {}".format(m_id, dict_analysis[m_id]['difference']))
         elif len(couple) == 1:
             if not check_utente:
                 check_utente = True
-            data['error_second_analysis'].append({'index': m_id, 'string': 'TimeOut or message not sent'})
-            print("m_id: {} --> TimeOut or message not sent".format(m_id))
+            if couple[0] + 1 < size_messages:
+                next_mex = messages[couple[0] + 1]
+                data['error_second_analysis'].append({'index': m_id, 'next_mex': {'message_id': next_mex['message_id'],
+                                                                                  'type_mex': next_mex['type_mex']
+                                                                                  },
+                                                      'string': 'TimeOut or message not sent'})
+            else:
+                data['error_second_analysis'].append({'index': m_id, 'string': 'TimeOut or message not sent'})
+
+            # print("m_id: {} --> TimeOut or message not sent".format(m_id))
 
     data['second_analysis'] = dict_analysis
-    lost_packets = int(sent_mex) - int(received_mex)
-    print("--- Summit ---")
-    print("Sent messages: {}, Received messages: {}, Losts: {}".format(sent_mex, received_mex, lost_packets))
-    print("Average difference send & receive: {}s - {}ms".format(statistics.mean(differences),
-                                                                 statistics.mean(differences) * 1000))
     data['analysis'] = {
-        'sent_mex': int(sent_mex),
         'received_mex': int(received_mex),
-        'lost_packet': int(lost_packets),
         'average_diff': statistics.mean(differences) * 1000,  # milliseconds
         'average_latency': statistics.mean(latencies) * 1000  # milliseconds
     }
-    data['status_analysis'] = 2
+    data['analysis_status'] = 2
     return data, check_utente
 
 
@@ -134,7 +153,7 @@ def first_analysis(path):
     with open(path) as json_file:
         data = json.load(json_file)
 
-        if data['status_analysis'] != 0:
+        if data['analysis_status'] != 0:
             raise BaseException('Phase 1 already executed')
 
         data['error_first_analysis'] = []
@@ -152,7 +171,7 @@ def first_analysis(path):
                 mex['type_mex'] = type_mex
                 mex['ttl'] = ttl_mex
 
-        data['status_analysis'] = 1
+        data['analysis_status'] = 1
         return data, check_utene
 
 
@@ -194,7 +213,7 @@ def main():
 
 
 def main2():
-    path = "./json_file/json_data_19-12-03_13-01.json"
+    path = "./json_file/json_data_19-12-03_13-24.json"
     checks = False
 
     try:
@@ -204,13 +223,16 @@ def main2():
         print(e)
 
     if checks:
-        input("Richiesto intervento poiché c'è un errore, analizzare \'error_first_analysis\'")
+        raise Exception("Richiesto intervento poiché c'è un errore, analizzare \'error_first_analysis\'")
     else:
         print("Fase 1 completata")
 
     try:
         my_data, checks = second_analysis(path=path)
         save_json_data(path=path, data=my_data)
+    except Exception as e:
+        print(e)
+        raise Exception('Check error_first_analysis before continuous')
     except BaseException as e:
         print(e)
 
@@ -227,5 +249,95 @@ def main2():
     print("Fase 3 completata")
 
 
+def test_fun_2(path):
+    with open(path) as json_file:
+        data = json.load(json_file)
+        messages = data['messages']
+
+    list_of_m_id = list()
+    for item in messages:
+        list_of_m_id.append(item['message_id'])
+
+    list_of_m_id = list(dict.fromkeys(list_of_m_id))  # definisco una lista contenente i message_id
+    if '0' in list_of_m_id:
+        list_of_m_id.remove('0')
+
+    for m_id in list_of_m_id:
+        couple = get_same_element_index(messages, m_id)  # individuo le coppie di messaggi
+
+        if len(couple) == 2:
+            print("m_id: {} --> {}".format(m_id, couple))
+        elif len(couple) == 1:
+            size_messages = len(messages)
+            if couple[0] + 1 < size_messages:
+                next_mex = messages[couple[0] + 1]
+                data['error_second_analysis'].append({'index': m_id, 'next_mex': {'message_id': next_mex['message_id'],
+                                                                                  'type_mex': next_mex['type_mex']
+                                                                                  },
+                                                      'string': 'TimeOut or message not sent'})
+            else:
+                data['error_second_analysis'].append({'index': m_id, 'string': 'TimeOut or message not sent'})
+
+            print("m_id: {} --> TimeOut or message not sent".format(m_id))
+    print(data['error_second_analysis'])
+    save_json_data(path=path, data=data)
+
+
+def test_fun_3(path):
+    with open(path) as json_file:
+        data = json.load(json_file)
+    errors = data['error_second_analysis']
+
+    lost = 0
+    not_sent = 0
+    last = int(errors[0]['index'])
+    list_lost = list()
+    list_not_sent = list()
+    for i, item in enumerate(errors):
+        if int(item['index']) - last == 1:
+            if int(item['next_mex']['message_id']) == 0:
+                not_sent += 1
+                print("Packet {} --> not sent".format(item['index']))
+                data['error_second_analysis'][i]['string'] = "Message not sent"
+                list_not_sent.append(int(item['index']))
+            else:
+                lost += 1
+                print("Packet {} --> TIMEOUT".format(item['index']))
+                data['error_second_analysis'][i]['string'] = "Error, TIMEOUT"
+                list_lost.append(int(item['index']))
+        else:
+            lost += 1
+            print("Packet {} --> TIMEOUT".format(item['index']))
+            data['error_second_analysis'][i]['string'] = "Error, TIMEOUT"
+            list_lost.append(int(item['index']))
+        last = int(item['index'])
+
+    data['analysis']['list_lost'] = list_lost
+    data['analysis']['list_not_sent'] = list_not_sent
+
+    if int(data['analysis']['sent_mex']) - int(data['analysis']['received_mex']) - int(
+            data['analysis']['lost_packet']) == 0:
+        print("Correct analysis")
+    else:
+        print("Error about counting")
+
+    save_json_data(path=path, data=data)
+
+
+def main3():
+    path = "./json_file/json_data_19-12-03_12-47.json"
+    print(path)
+    x = input("fun1")
+    if x == 'y':
+        test_fun_2(path)
+
+    x = input("fun2")
+    if x == 'y':
+        test_fun_3(path)
+
+
 if __name__ == "__main__":
-    main2()
+    try:
+        main2()
+    except Exception as e:
+        print(e)

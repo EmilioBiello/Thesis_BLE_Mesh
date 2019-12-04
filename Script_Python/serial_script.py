@@ -104,7 +104,7 @@ def add_command_to_dictionary(command):
             'ack': command_list[4].split(":")[1]
         }
         data['messages'] = []
-        data['status_analysis'] = 0
+        data['analysis_status'] = 0
         update_my_dictionary = True
     elif update_my_dictionary:
         update_my_dictionary = False
