@@ -20,19 +20,19 @@ struct _led_state led_state[2] = {
     { LED_OFF, LED_OFF, LED_B, "blue"  },
 };
 
-void board_led_operation(uint8_t pin, uint8_t onoff)
+void board_led_operation(uint8_t pin, uint8_t status_led)
 {
     for (int i = 0; i < 2; i++) {
         if (led_state[i].pin != pin) {
             continue;
         }
-        if (onoff == led_state[i].previous) {
+        if (status_led == led_state[i].previous) {
             ESP_LOGW(TAG, "led %s is already %s",
-                     led_state[i].name, (onoff ? "on" : "off"));
+                     led_state[i].name, (status_led ? "on" : "off"));
             return;
         }
-        gpio_set_level(pin, onoff);
-        led_state[i].previous = onoff;
+        gpio_set_level(pin, status_led);
+        led_state[i].previous = status_led;
         return;
     }
 

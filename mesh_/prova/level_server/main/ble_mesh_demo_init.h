@@ -9,7 +9,7 @@
 #ifndef _BLE_MESH_DEMO_INIT_H_
 #define _BLE_MESH_DEMO_INIT_H_
 
-#define TAG "onoff_server"
+#define TAG "level_server"
 
 void ble_mesh_get_dev_uuid(uint8_t *dev_uuid);
 

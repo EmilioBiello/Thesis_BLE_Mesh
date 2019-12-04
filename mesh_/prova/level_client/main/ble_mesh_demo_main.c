@@ -29,10 +29,6 @@ static uint16_t node_net_idx = ESP_BLE_MESH_KEY_UNUSED;
 static uint16_t node_app_idx = ESP_BLE_MESH_KEY_UNUSED;
 static uint8_t msg_tid = 0x1;
 
-/* The remote node address shall be input through UART1, see board.c */
-uint16_t remote_addr = ESP_BLE_MESH_ADDR_UNASSIGNED;
-bool prov_completed = false;
-
 static esp_ble_mesh_client_t bleMeshClient;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
@@ -85,16 +81,11 @@ static esp_ble_mesh_prov_t provision = {
 #endif
 };
 
-bool get_info_provisioning() {
-    return prov_completed;
-}
-
 static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index) {
     ESP_LOGI(TAG, "net_idx: 0x%04x, addr: 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08x", flags, iv_index);
     board_led_operation(LED_G, LED_OFF);
     node_net_idx = net_idx;
-    prov_completed = true;
 }
 
 static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,

@@ -33,7 +33,7 @@ extern struct _led_state led_state[2];
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
-        .relay = ESP_BLE_MESH_RELAY_DISABLED,
+        .relay = ESP_BLE_MESH_RELAY_ENABLED,
         .beacon = ESP_BLE_MESH_BEACON_ENABLED,
 #if defined(CONFIG_BLE_MESH_FRIEND)
         .friend_state = ESP_BLE_MESH_FRIEND_ENABLED,
@@ -153,12 +153,11 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
             }
 
             if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
-                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d", srv->state.level);
                 esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
                                                    sizeof(srv->state.level), (uint8_t *) &srv->state.level);
+                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d", srv->state.level);
             }
             if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
-                printf("2.1 publish\n");
                 esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
                                            (uint8_t *) &srv->state.level, ROLE_NODE);
             }
@@ -218,31 +217,30 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
     switch (event) {
         case ESP_BLE_MESH_GENERIC_SERVER_STATE_CHANGE_EVT:
             // Messaggio Ricevuto da tutti i nodi
-            ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_SERVER_STATE_CHANGE_EVT");
             if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET ||
                 param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
-                ESP_LOGI(TAG, "LEVEL 0x%02x", param->value.state_change.level_set.level);
                 example_change_led_state(param->model, &param->ctx);
+                ESP_LOGI(TAG, "STATE_CHANGE_EVT --> Level %d", param->value.state_change.level_set.level);
             }
             break;
         case ESP_BLE_MESH_GENERIC_SERVER_RECV_GET_MSG_EVT:
-            ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_SERVER_RECV_GET_MSG_EVT");
             if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET) {
                 example_handle_gen_level_msg(param->model, &param->ctx, NULL);
             }
+            ESP_LOGI(TAG, "GET_MSG_EVT");
             break;
         case ESP_BLE_MESH_GENERIC_SERVER_RECV_SET_MSG_EVT:
             // MEssaggio Ricevuto all'indirizzo specifico
-            ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_SERVER_RECV_SET_MSG_EVT");
             if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET ||
                 param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
-                ESP_LOGI(TAG, "LEVEL 0x%02x, tid 0x%02x", param->value.set.level.level, param->value.set.level.tid);
-                if (param->value.set.level.op_en) {
-                    ESP_LOGI(TAG, "trans_time 0x%02x, delay 0x%02x",
-                             param->value.set.level.trans_time, param->value.set.level.delay);
-                }
                 example_handle_gen_level_msg(param->model, &param->ctx, &param->value.set.level);
+                ESP_LOGI(TAG, "LEVEL %d, tid %d", param->value.set.level.level, param->value.set.level.tid);
+                if (param->value.set.level.op_en) {
+                    ESP_LOGI(TAG, "trans_time 0x%02x, delay 0x%02x", param->value.set.level.trans_time,
+                             param->value.set.level.delay);
+                }
             }
+            ESP_LOGI(TAG, "SET_MSG_EVT");
             break;
         default:
             ESP_LOGE(TAG, "Unknown Generic Server event 0x%02x", event);

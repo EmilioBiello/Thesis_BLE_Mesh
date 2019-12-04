@@ -12,7 +12,7 @@
 #include "driver/gpio.h"
 #include "esp_ble_mesh_defs.h"
 
-#define LED_G GPIO_NUM_26
+#define LED_G GPIO_NUM_27
 
 #define LED_ON  1
 #define LED_OFF 0
