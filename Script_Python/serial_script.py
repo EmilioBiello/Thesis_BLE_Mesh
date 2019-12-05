@@ -2,11 +2,11 @@ import serial
 import time
 from threading import Thread, Event
 import sys
-# JSON
-import json
 import datetime as dt
 # Regular Expression
 import re
+# EMILIO FUNCTION
+import emilio_function as my
 
 port = "/dev/ttyUSB1"
 baud = 115200
@@ -25,24 +25,26 @@ time.sleep(1)  # give the connection a second to settle
 if esp32.isOpen():
     print(esp32.name + " is open...")
 
+def reading():
+    print('\x1b[0;33;40m' + "******" + '\x1b[0m')
+    print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000,ack:0 (ms)}")
+    print(" - GET mex: {@,addr:0x0004}")
+    print(" - SET_UNACK mex: { @,addr:0x0004,level:1 }")
+    print(" - SET mex: { @,addr:0x0004,level:1,ack:0 }")
+    print(" - send LOG to PC: {#,log:1}")
+    print("*** " + '\x1b[0;33;40m' + "print JSON data" + '\x1b[0m' + ": \'" +
+          '\x1b[1;31;40m' + "p" + '\x1b[0m' + "\' ***")
+    print("*** " + '\x1b[0;33;40m' + "save and exit" + '\x1b[0m' + ": \'" +
+          '\x1b[1;31;40m' + "q" + '\x1b[0m' + "\' ***")
+    print("*** " + '\x1b[0;33;40m' + "exit" + '\x1b[0m' + ": \'" +
+          '\x1b[1;31;40m' + "e" + '\x1b[0m' + "\' ***\n")
+
 
 def write_on_serial():
     global save_data
 
     while True:
-        print('\x1b[0;33;40m' + "******" + '\x1b[0m')
-        print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000,ack:0 (ms)}")
-        print(" - GET mex: {@,addr:0x0004}")
-        print(" - SET_UNACK mex: { @,addr:0x0004,level:1 }")
-        print(" - SET mex: { @,addr:0x0004,level:1,ack:0 }")
-        print(" - send LOG to PC: {#,log:1}")
-        print("*** " + '\x1b[0;33;40m' + "print JSON data" + '\x1b[0m' + ": \'" +
-              '\x1b[1;31;40m' + "p" + '\x1b[0m' + "\' ***")
-        print("*** " + '\x1b[0;33;40m' + "save and exit" + '\x1b[0m' + ": \'" +
-              '\x1b[1;31;40m' + "q" + '\x1b[0m' + "\' ***")
-        print("*** " + '\x1b[0;33;40m' + "exit" + '\x1b[0m' + ": \'" +
-              '\x1b[1;31;40m' + "e" + '\x1b[0m' + "\' ***\n")
-
+        reading()
         try:
             command = input("Insert command to send to esp32: \n")
 
@@ -55,7 +57,7 @@ def write_on_serial():
                     event.set()
                     break
                 elif command == 'p':
-                    print_data_as_json()
+                    my.print_data_as_json(data)
                 else:
                     esp32.write(command.encode())
                     add_command_to_dictionary(command)
@@ -85,7 +87,9 @@ def read_from_serial():
                     print('\x1b[6;30;43m' + " Dictionary is empty! " + '\x1b[0m')
                 else:
                     print('\x1b[6;30;42m' + " Saved! " + '\x1b[0m')
-                    save_json_data()
+                    directory = my.define_directory(info="")
+                    path = directory + '/test_' + dt.datetime.now().strftime("%y_%m_%d-%H_%M_%S") + '.json'
+                    my.save_json_data(path=path, data=data)
             else:
                 print("goodbye")
             break
@@ -118,37 +122,6 @@ def update_dictionary(now, message):
             'len': size,
             'time': now
         })
-
-
-# mex_list[0] = mex_list[0].replace("-", "")
-# size = len(mex_list)
-
-# data['messages'].append({
-#     'receiver': '' if size < 1 else mex_list[0],
-#     'status': '' if size < 2 else mex_list[1],
-#     'type_mex': '' if size < 3 else mex_list[2],
-#     'message_id': '' if size < 4 else mex_list[3],
-#     'time': now
-# })
-
-# Allow to serialize datetime into JSON string
-
-
-def convert_timestamp(item_data_object):
-    if isinstance(item_data_object, dt.datetime):
-        return item_data_object.__str__()
-
-
-def save_json_data():
-    path = './json_file/json_data_' + dt.datetime.now().strftime("%y-%m-%d_%H-%M") + '.json'
-    print(path)
-    with open(path, 'w', encoding='utf-8') as json_file:
-        json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=4)
-
-
-def print_data_as_json():
-    data_json = json.dumps(data, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=4)
-    print(data_json)
 
 
 def main():

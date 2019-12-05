@@ -1,27 +1,7 @@
 import json
 import datetime as dt
 import statistics
-import os
-import glob
-
-
-def get_file_from_directory():
-    list_of_files = glob.glob('json_file/*.json')
-    latest_file = max(list_of_files, key=os.path.getctime)
-    print("Path: {}".format(latest_file))
-    return latest_file
-
-
-def get_same_element_index(list_of_items, value_to_find):
-    list_of_keys = list()
-    for i, dic in enumerate(list_of_items):
-        if dic['message_id'] == value_to_find:
-            list_of_keys.append(i)
-    return list_of_keys
-
-
-def print_dict_as_json(my_dictionary):
-    print(json.dumps(my_dictionary, default=convert_timestamp, ensure_ascii=False, sort_keys=True))
+import emilio_function as my
 
 
 def third_analysis(path):
@@ -101,7 +81,7 @@ def second_analysis(path):
     data['error_second_analysis'] = []
     size_messages = len(messages)
     for m_id in list_of_m_id:
-        couple = get_same_element_index(messages, m_id)  # individuo le coppie di messaggi
+        couple = my.get_same_element_index(messages, m_id)  # individuo le coppie di messaggi
 
         if len(couple) == 2:
             received_mex += 1
@@ -149,7 +129,7 @@ def second_analysis(path):
 
 
 def first_analysis(path):
-    check_utene = False
+    check = False
     with open(path) as json_file:
         data = json.load(json_file)
 
@@ -160,8 +140,8 @@ def first_analysis(path):
         for mex in data['messages']:
             if mex['len'] != 5 and mex['len'] != 6:
                 data['error_first_analysis'].append({'time': mex['time'], 'string': mex['message_id']})
-                if not check_utene:
-                    check_utene = True
+                if not check:
+                    check = True
             else:
                 m_id = mex['message_id'].split(',')[1]
                 type_mex = mex['message_id'].split(',')[0]
@@ -172,26 +152,16 @@ def first_analysis(path):
                 mex['ttl'] = ttl_mex
 
         data['analysis_status'] = 1
-        return data, check_utene
-
-
-def convert_timestamp(item_data_object):
-    if isinstance(item_data_object, dt.datetime):
-        return item_data_object.__str__()
-
-
-def save_json_data(path, data):
-    with open(path, 'w', encoding='utf-8') as json_file:
-        json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=4)
+        return data, check
 
 
 def main():
     checks = False
-    path = get_file_from_directory()
+    path = my.get_file_from_directory('json_file/*.json')
 
     try:
         my_data, checks = first_analysis(path=path)
-        save_json_data(path=path, data=my_data)
+        my.save_json_data(path=path, data=my_data)
     except BaseException as e:
         print(e)
 
@@ -202,7 +172,7 @@ def main():
 
     try:
         my_data, checks = second_analysis(path=path)
-        save_json_data(path=path, data=my_data)
+        my.save_json_data(path=path, data=my_data)
     except BaseException as e:
         print(e)
 
@@ -218,7 +188,7 @@ def main2():
 
     try:
         my_data, checks = first_analysis(path=path)
-        save_json_data(path=path, data=my_data)
+        my.save_json_data(path=path, data=my_data)
     except BaseException as e:
         print(e)
 
@@ -229,7 +199,7 @@ def main2():
 
     try:
         my_data, checks = second_analysis(path=path)
-        save_json_data(path=path, data=my_data)
+        my.save_json_data(path=path, data=my_data)
     except Exception as e:
         print(e)
         raise Exception('Check error_first_analysis before continuous')
@@ -243,97 +213,10 @@ def main2():
 
     try:
         my_data = third_analysis(path=path)
-        save_json_data(path=path, data=my_data)
+        my.save_json_data(path=path, data=my_data)
     except BaseException as e:
         print(e)
     print("Fase 3 completata")
-
-
-def test_fun_2(path):
-    with open(path) as json_file:
-        data = json.load(json_file)
-        messages = data['messages']
-
-    list_of_m_id = list()
-    for item in messages:
-        list_of_m_id.append(item['message_id'])
-
-    list_of_m_id = list(dict.fromkeys(list_of_m_id))  # definisco una lista contenente i message_id
-    if '0' in list_of_m_id:
-        list_of_m_id.remove('0')
-
-    for m_id in list_of_m_id:
-        couple = get_same_element_index(messages, m_id)  # individuo le coppie di messaggi
-
-        if len(couple) == 2:
-            print("m_id: {} --> {}".format(m_id, couple))
-        elif len(couple) == 1:
-            size_messages = len(messages)
-            if couple[0] + 1 < size_messages:
-                next_mex = messages[couple[0] + 1]
-                data['error_second_analysis'].append({'index': m_id, 'next_mex': {'message_id': next_mex['message_id'],
-                                                                                  'type_mex': next_mex['type_mex']
-                                                                                  },
-                                                      'string': 'TimeOut or message not sent'})
-            else:
-                data['error_second_analysis'].append({'index': m_id, 'string': 'TimeOut or message not sent'})
-
-            print("m_id: {} --> TimeOut or message not sent".format(m_id))
-    print(data['error_second_analysis'])
-    save_json_data(path=path, data=data)
-
-
-def test_fun_3(path):
-    with open(path) as json_file:
-        data = json.load(json_file)
-    errors = data['error_second_analysis']
-
-    lost = 0
-    not_sent = 0
-    last = int(errors[0]['index'])
-    list_lost = list()
-    list_not_sent = list()
-    for i, item in enumerate(errors):
-        if int(item['index']) - last == 1:
-            if int(item['next_mex']['message_id']) == 0:
-                not_sent += 1
-                print("Packet {} --> not sent".format(item['index']))
-                data['error_second_analysis'][i]['string'] = "Message not sent"
-                list_not_sent.append(int(item['index']))
-            else:
-                lost += 1
-                print("Packet {} --> TIMEOUT".format(item['index']))
-                data['error_second_analysis'][i]['string'] = "Error, TIMEOUT"
-                list_lost.append(int(item['index']))
-        else:
-            lost += 1
-            print("Packet {} --> TIMEOUT".format(item['index']))
-            data['error_second_analysis'][i]['string'] = "Error, TIMEOUT"
-            list_lost.append(int(item['index']))
-        last = int(item['index'])
-
-    data['analysis']['list_lost'] = list_lost
-    data['analysis']['list_not_sent'] = list_not_sent
-
-    if int(data['analysis']['sent_mex']) - int(data['analysis']['received_mex']) - int(
-            data['analysis']['lost_packet']) == 0:
-        print("Correct analysis")
-    else:
-        print("Error about counting")
-
-    save_json_data(path=path, data=data)
-
-
-def main3():
-    path = "./json_file/json_data_19-12-03_12-47.json"
-    print(path)
-    x = input("fun1")
-    if x == 'y':
-        test_fun_2(path)
-
-    x = input("fun2")
-    if x == 'y':
-        test_fun_3(path)
 
 
 if __name__ == "__main__":
