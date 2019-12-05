@@ -1,4 +1,3 @@
-import json
 import datetime as dt
 import statistics
 import emilio_function as my
@@ -9,8 +8,8 @@ regular_expression_mex = "^[R|S],[0-9]{1,5},[0-9|*]$"
 
 # tratta gli error sollevati nella fase precedente e definisce se si tratta di un timeout o di un packet not sent
 # calcolo messaggi effettivamente inviati, mex_non inviati e pacchetti persi
-def third_analysis(path):
-    data = my.open_file_and_return_data(path=path)
+def third_analysis(data):
+    # data = my.open_file_and_return_data(path=path)
     errors = data['error_second_analysis']
 
     if data['analysis_status'] != 2:
@@ -58,14 +57,14 @@ def third_analysis(path):
 
 # calcolo i tempi per ciascuna coppia di mex [sent --> received] e individuo eventuali errori [timeout, packet not set]
 # definisco latency media del test
-def second_analysis(path):
-    data = my.open_file_and_return_data(path=path)
+def second_analysis(data):
+    # data = my.open_file_and_return_data(path=path)
     messages = data['messages']
 
     if len(data['error_first_analysis']) > 0:
         raise Exception('\x1b[1;31;40m' + ' Error: List \'error_first_analysis\' not empty ' + '\x1b[0m')
 
-    if data['analysis_status'] > 1:
+    if data['analysis_status'] != 1:
         raise Exception('\x1b[1;31;40m' + ' Phase 2 is already executed ' + '\x1b[0m')
 
     received_mex = 0
@@ -140,19 +139,24 @@ def second_analysis(path):
     data['second_analysis'] = dict_analysis
     data['analysis'] = {
         'received_mex': int(received_mex),
-        'average_diff': statistics.mean(differences) * 1000,  # milliseconds
-        'average_latency': statistics.mean(latencies) * 1000,  # milliseconds
+        'average_diff': statistics.mean(differences) * 1000,  # milliseconds to seconds
+        'min_diff': min(differences),
+        'max_diff': max(differences),
+        'average_latency': statistics.mean(latencies) * 1000,  # milliseconds to seconds
+        'min_latency': min(latencies),
+        'max_latency': max(latencies),
         'first_send': first_send,
         'last_received': last_received,
-        'test_time': test_time.total_seconds()
+        'test_time': test_time.total_seconds(),
+        '_comment': 'The time are expressed in seconds'
     }
     data['analysis_status'] = 2
     return data, user_check
 
 
 # risolvo gli eventuali erorri sollevati nella fase di preprocessing
-def resolve_errors_preprocessing(path):
-    data = my.open_file_and_return_data(path=path)
+def resolve_errors_preprocessing(data):
+    # data = my.open_file_and_return_data(path=path)
 
     if data['analysis_status'] != -1:
         raise Exception('\x1b[1;31;40m' + ' Resolution error is not necessary or already executed ' + '\x1b[0m')
@@ -218,30 +222,31 @@ def analyse_directory():
 def main():
     path = "./json_file/test_2019_12_05/test_19_12_05-15_25_09.json"
     path_1 = path[:-5] + "_analysis.json"
+    my_data = dict()
 
     try:
-        my_data, checks = preprocessing(path=path)
-        my.save_json_data_elegant(path=path_1, data=my_data)
+        my_data = preprocessing(path=path)
+        # my.save_json_data_elegant(path=path_1, data=my_data)
         print('\x1b[0;33;40m' + " Preprocessing completed! " + '\x1b[0m')
     except Exception as e:
         print(e)
 
     try:
-        my_data = resolve_errors_preprocessing(path=path_1)
-        my.save_json_data_elegant(path=path_1, data=my_data)
+        my_data = resolve_errors_preprocessing(data=my_data)
+        # my.save_json_data_elegant(path=path_1, data=my_data)
         print('\x1b[0;33;40m' + " Error Preprocessing resoluted! " + '\x1b[0m')
     except Exception as e:
         print(e)
 
     try:
-        my_data, checks = second_analysis(path=path_1)
-        my.save_json_data_elegant(path=path_1, data=my_data)
+        my_data, checks = second_analysis(data=my_data)
+        # my.save_json_data_elegant(path=path_1, data=my_data)
         print('\x1b[0;33;40m' + " Second Analysis completed! " + '\x1b[0m')
     except Exception as e:
         print(e)
 
     try:
-        my_data = third_analysis(path=path_1)
+        my_data = third_analysis(data=my_data)
         my.save_json_data_elegant(path=path_1, data=my_data)
         print('\x1b[0;33;40m' + " Third Analysis completed! " + '\x1b[0m')
     except Exception as e:

@@ -181,18 +181,17 @@ void config_single_mex_get(char *addr_c) {
     free(addr_char);
 }
 
-void decoding_string(char tokens0, char *token1, char *token2, char *token3, char *token4, char opcode) {
+void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
     char **t1_char = str_split(token1, ':');
     char **t2_char = str_split(token2, ':');
     char **t3_char = str_split(token3, ':');
-    char **t4_char = str_split(token4, ':');
 
 
 //TODO rimuovere l'ultimo char e impostare t3 a "false"
     if (tokens0 == '@') {
         m2.addr_s = strtoul((const char *) t1_char[1], NULL, 16);
         m2.level_s = strtoul((const char *) t2_char[1], NULL, 10);
-        if (opcode == 'u') {
+        if (strcmp(t3_char[0], "unack") == 0) {
             m2.opcode_s = ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK;
             m2.ack_s = 0;
         } else {
@@ -203,13 +202,12 @@ void decoding_string(char tokens0, char *token1, char *token2, char *token3, cha
         m1.n_mex_s = strtoul((const char *) t1_char[1], NULL, 10);
         m1.addr_s = strtoul((const char *) t2_char[1], NULL, 16);
         m1.delay_s = strtoul((const char *) t3_char[1], NULL, 10);
-        m1.ack_s = strtoul((const char *) t4_char[1], NULL, 2);
+        m1.ack_s = 0;
     }
 
     free(t1_char);
     free(t2_char);
     free(t3_char);
-    free(t4_char);
 }
 
 void command_received(char **tokens, int count) {
@@ -226,11 +224,11 @@ void command_received(char **tokens, int count) {
                 config_single_mex_get(tokens[1]);
                 printf("GET\n");
             } else if (count == 2) {
-                decoding_string('@', tokens[1], tokens[2], "0", "0", 'u');
+                decoding_string('@', tokens[1], tokens[2], "unack");
                 send_message(m2.addr_s, m2.opcode_s, m2.level_s, false);
                 ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
             } else if (count == 3) {
-                decoding_string('@', tokens[1], tokens[2], tokens[3], "0", 's');
+                decoding_string('@', tokens[1], tokens[2], tokens[3]);
                 send_message(m2.addr_s, m2.opcode_s, m2.level_s, m2.ack_s);
                 ESP_LOGI("SEND_MESSAGE", "SET");
             }
@@ -238,11 +236,10 @@ void command_received(char **tokens, int count) {
             break;
 
         case '&':
-            decoding_string('&', tokens[1], tokens[2], tokens[3], tokens[4], 'r');
+            decoding_string('&', tokens[1], tokens[2], tokens[3]);
             printf("n_mex: %hu\n", m1.n_mex_s);
             printf("addr: %hhu\n", m1.addr_s);
             printf("delay: %u\n", m1.delay_s);
-            printf("ack: %u\n", m1.ack_s);
             execute_rule();
             printf("Rule\n");
             break;

@@ -141,8 +141,8 @@ void send_message(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) 
     set.level_set.tid = msg_tid++;
 
 
-    ESP_LOGW("LevelMex", "Message: level: %hd -- destination: 0x%04x -- tid %hhu\n", set.level_set.level,
-             common.ctx.addr, set.level_set.tid);
+    ESP_LOGW("LevelMex", "Message: level: %hd -- destination: 0x%04x -- tid %hhu size common: %d, size set:%d\n",
+             set.level_set.level, common.ctx.addr, set.level_set.tid, (int) sizeof(common), (int) sizeof(set));
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set);
     if (err) {
