@@ -8,13 +8,13 @@ import re
 # EMILIO FUNCTION
 import emilio_function as my
 
-port = "/dev/ttyUSB1"
+port = "/dev/ttyUSB0"
 baud = 115200
 data = {}
 event = Event()
 regular_expresion_command = "^(e|p|q)$"
-regular_expresion_set_get = "^@,addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4})(,level:[0-9]{1,3}(,ack:[0|1]){0,1}){0,1}$"
-regular_expresion_rule = "^&,n_mex:[0-9]{1,2},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6},ack:[0|1]$"
+regular_expresion_set_get = "^@,addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4})(,level:[0-9]{1,5}(,ack:[0|1]){0,1}){0,1}$"
+regular_expresion_rule = "^&,n_mex:[0-9]{1,5},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6}$"
 regular_expresion_log = "^#,log:(0|1)$"
 
 save_data = False
@@ -25,9 +25,10 @@ time.sleep(1)  # give the connection a second to settle
 if esp32.isOpen():
     print(esp32.name + " is open...")
 
+
 def reading():
     print('\x1b[0;33;40m' + "******" + '\x1b[0m')
-    print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000,ack:0 (ms)}")
+    print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000 (ms)}")
     print(" - GET mex: {@,addr:0x0004}")
     print(" - SET_UNACK mex: { @,addr:0x0004,level:1 }")
     print(" - SET mex: { @,addr:0x0004,level:1,ack:0 }")
@@ -48,8 +49,8 @@ def write_on_serial():
         try:
             command = input("Insert command to send to esp32: \n")
 
-            if re.search(regular_expresion_command, command) or re.search(regular_expresion_set_get, command) or \
-                    re.search(regular_expresion_rule, command) or re.search(regular_expresion_log, command):
+            if re.match(regular_expresion_command, command) or re.match(regular_expresion_set_get, command) or \
+                    re.match(regular_expresion_rule, command) or re.match(regular_expresion_log, command):
                 if command == 'q' or command == 'e':
                     if command == 'q':
                         save_data = True
@@ -89,7 +90,7 @@ def read_from_serial():
                     print('\x1b[6;30;42m' + " Saved! " + '\x1b[0m')
                     directory = my.define_directory(info="")
                     path = directory + '/test_' + dt.datetime.now().strftime("%y_%m_%d-%H_%M_%S") + '.json'
-                    my.save_json_data(path=path, data=data)
+                    my.save_json_data_elegant(path=path, data=data)
             else:
                 print("goodbye")
             break
@@ -97,18 +98,17 @@ def read_from_serial():
 
 def add_command_to_dictionary(command):
     global update_my_dictionary
-    if re.search(regular_expresion_rule, command):
+    if re.match(regular_expresion_rule, command):
         command_list = command.split(",")
 
+        data['analysis_status'] = 0
         data['command'] = {
             'first_char': command_list[0],
-            'n_mex': command_list[1].split(":")[1],
+            'n_mex': int(command_list[1].split(":")[1]),
             'addr': command_list[2].split(":")[1],
-            'delay': command_list[3].split(":")[1],
-            'ack': command_list[4].split(":")[1]
+            'delay': int(command_list[3].split(":")[1])
         }
         data['messages'] = []
-        data['analysis_status'] = 0
         update_my_dictionary = True
     elif update_my_dictionary:
         update_my_dictionary = False
@@ -116,10 +116,8 @@ def add_command_to_dictionary(command):
 
 def update_dictionary(now, message):
     if update_my_dictionary:
-        size = len(message)
         data['messages'].append({
             'message_id': message,
-            'len': size,
             'time': now
         })
 
