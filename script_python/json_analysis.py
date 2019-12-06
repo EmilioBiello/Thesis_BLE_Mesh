@@ -2,6 +2,7 @@ import datetime as dt
 import statistics
 import emilio_function as my
 import re
+import sys
 
 regular_expression_mex = "^[R|S],[0-9]{1,5},[0-9|*]$"
 
@@ -40,15 +41,15 @@ def third_analysis(data):
                 list_lost.append(int(item['index']))
             last = int(item['index'])
 
-    data['analysis']['sent_mex'] = int(int(data['command']['n_mex']) - not_sent)
-    data['analysis']['lost_packet'] = int(lost)
-    data['analysis']['list_lost'] = list_lost
-    data['analysis']['list_not_sent'] = list_not_sent
+    data['analysis']['packet_sent'] = int(int(data['command']['n_mex']) - not_sent)
+    data['analysis']['packet_lost'] = int(lost)
+    data['analysis']['list_lost_mex_id'] = list_lost
+    data['analysis']['list_not_sent_mex_id'] = list_not_sent
 
     # print_dict_as_json(data)
     data['analysis_status'] = 3
-    if int(data['analysis']['sent_mex']) - int(data['analysis']['received_mex']) - int(
-            data['analysis']['lost_packet']) == 0:
+    if int(data['analysis']['packet_sent']) - int(data['analysis']['packet_received']) - int(
+            data['analysis']['packet_lost']) == 0:
         print("Correct analysis")
     else:
         print("Error about counting in analysis [lost, sent, received]")
@@ -67,7 +68,7 @@ def second_analysis(data):
     if data['analysis_status'] != 1:
         raise Exception('\x1b[1;31;40m' + ' Phase 2 is already executed ' + '\x1b[0m')
 
-    received_mex = 0
+    packet_received = 0
 
     list_of_m_id = list()
     for item in messages:
@@ -87,7 +88,7 @@ def second_analysis(data):
         couple = my.get_same_element_index(messages, m_id)  # individuo le coppie di messaggi
 
         if len(couple) == 2:
-            received_mex += 1
+            packet_received += 1
             match_1, e_1 = my.look_into_element(messages[couple[0]])
             match_2, e_2 = my.look_into_element(messages[couple[1]])
             if not match_1 and not match_2:
@@ -125,7 +126,11 @@ def second_analysis(data):
                                                       },
                      'string': 'TimeOut or message not sent'})
             else:
-                data['error_second_analysis'].append({'index': int(m_id), 'string': 'TimeOut or message not sent'})
+                # last message
+                data['error_second_analysis'].append(
+                    {'index': int(m_id), 'next_mex': {'message_id': messages[couple[0]]['message_id'],
+                                                      'type_mex': messages[couple[0]]['type_mex']
+                                                      }, 'string': 'TimeOut or message not sent'})
             # print("m_id: {} --> TimeOut or message not sent".format(m_id))
 
     first_send = messages[0]['time']
@@ -135,20 +140,22 @@ def second_analysis(data):
     test_time = last_datetime - first_datetime
     hours, minutes, seconds = my.convert_timedelta(test_time)
     print("Tempo test: {}:{}.{} [mm:s.us]".format(minutes, seconds, test_time.microseconds))
+    test_time_m = str(minutes) + " M, " + str(seconds) + " s"
 
     data['second_analysis'] = dict_analysis
     data['analysis'] = {
-        'received_mex': int(received_mex),
-        'average_diff': statistics.mean(differences) * 1000,  # milliseconds to seconds
-        'min_diff': min(differences),
-        'max_diff': max(differences),
-        'average_latency': statistics.mean(latencies) * 1000,  # milliseconds to seconds
-        'min_latency': min(latencies),
-        'max_latency': max(latencies),
-        'first_send': first_send,
-        'last_received': last_received,
+        'packet_received': int(packet_received),
+        'average_diff_time': statistics.mean(differences),  # seconds
+        'min_diff_time': min(differences),
+        'max_diff_time': max(differences),
+        'average_latency_time': statistics.mean(latencies),  # seconds
+        'min_latency_time': min(latencies),
+        'max_latency_time': max(latencies),
+        'first_send_time': first_send,
+        'last_received_time': last_received,
         'test_time': test_time.total_seconds(),
-        '_comment': 'The time are expressed in seconds'
+        'test_time_m': test_time_m,
+        '_comment': 'The times are expressed in seconds'
     }
     data['analysis_status'] = 2
     return data, user_check
@@ -178,7 +185,7 @@ def resolve_errors_preprocessing(data):
     print("Resolve {} errors".format(len(second_i_list)))
     for i in second_i_list:
         x = data['messages'].pop(i)
-        print("index: {} - {}".format(i, x))
+        # print("index: {} - {}".format(i, x))
     errors.clear()
     data['analysis_status'] = 1
     return data
@@ -207,9 +214,9 @@ def preprocessing(path):
     data['analysis_status'] = -1 if check else 1
 
     # Faccio in modo da eseguire preprocessing solo una volta
-    raw = my.open_file_and_return_data(path=path)
-    raw['analysis_status'] = 1
-    my.save_json_data_elegant(path=path, data=raw)
+    # raw = my.open_file_and_return_data(path=path)
+    # raw['analysis_status'] = 1
+    # my.save_json_data_elegant(path=path, data=raw)
     return data
 
 
@@ -219,8 +226,19 @@ def analyse_directory():
     path_1 = path[:-5] + "_analysis.json"
 
 
+def get_argument():
+    re_path = "^json_file\/test_[0-9]{4}(_[0-9]{1,2}){2}\/test(_[0-9]{2}){3}-([0-9]{2}(_){0,1}){3}.json$"
+    if len(sys.argv) != 2:
+        raise Exception('\x1b[1;31;40m' + ' Wrong Arguments! ' + '\x1b[0m')
+    elif not re.match(re_path, str(sys.argv[1])):
+        raise Exception('\x1b[1;31;40m' + ' Wrong Path! ' + '\x1b[0m')
+    else:
+        print("Correct path!")
+        return "./" + str(sys.argv[1])
+
+
 def main():
-    path = "./json_file/test_2019_12_05/test_19_12_05-15_25_09.json"
+    path = get_argument()
     path_1 = path[:-5] + "_analysis.json"
     my_data = dict()
 
@@ -230,6 +248,7 @@ def main():
         print('\x1b[0;33;40m' + " Preprocessing completed! " + '\x1b[0m')
     except Exception as e:
         print(e)
+        return
 
     try:
         my_data = resolve_errors_preprocessing(data=my_data)
@@ -237,6 +256,7 @@ def main():
         print('\x1b[0;33;40m' + " Error Preprocessing resoluted! " + '\x1b[0m')
     except Exception as e:
         print(e)
+        return
 
     try:
         my_data, checks = second_analysis(data=my_data)
@@ -244,13 +264,54 @@ def main():
         print('\x1b[0;33;40m' + " Second Analysis completed! " + '\x1b[0m')
     except Exception as e:
         print(e)
+        return
 
     try:
         my_data = third_analysis(data=my_data)
-        my.save_json_data_elegant(path=path_1, data=my_data)
         print('\x1b[0;33;40m' + " Third Analysis completed! " + '\x1b[0m')
+        my.save_json_data_elegant(path=path_1, data=my_data)
     except Exception as e:
         print(e)
+
+
+def call_preprocessing_and_save(path, path_1):
+    my_data = preprocessing(path=path)
+    my.save_json_data_elegant(path=path_1, data=my_data)
+
+
+def call_error_resolution_and_save(path_1):
+    data = my.open_file_and_return_data(path=path_1)
+    data = resolve_errors_preprocessing(data=data)
+    my.save_json_data_elegant(path=path_1, data=data)
+
+
+def call_second_analysis_and_save(path_1):
+    data = my.open_file_and_return_data(path=path_1)
+    data = second_analysis(data=data)
+    my.save_json_data_elegant(path=path_1, data=data)
+
+
+def call_third_analysis_and_save(path_1):
+    data = my.open_file_and_return_data(path=path_1)
+    data = third_analysis(data=data)
+    my.save_json_data_elegant(path=path_1, data=data)
+
+
+def testing_phase():
+    path = "./json_file/test_2019_12_06/test_19_12_06-12_41_14.json"
+    path_1 = path[:-5] + "_analysis.json"
+
+    # PREPROCESSING
+    # call_preprocessing_and_save(path, path_1)
+
+    # ERROR Resolution
+    # call_error_resolution_and_save(path_1)
+
+    # Seconds Analysis
+    # call_second_analysis_and_save(path_1)
+
+    # Third Analysis
+    # call_third_analysis_and_save(path_1)
 
 
 if __name__ == "__main__":

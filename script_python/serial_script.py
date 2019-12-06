@@ -109,6 +109,7 @@ def add_command_to_dictionary(command):
             'delay': int(command_list[3].split(":")[1])
         }
         data['messages'] = []
+        data['_comment'] = "timeout 200 ms"
         update_my_dictionary = True
     elif update_my_dictionary:
         update_my_dictionary = False
