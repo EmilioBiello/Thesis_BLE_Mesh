@@ -133,16 +133,14 @@ void send_message(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) 
     common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
     common.ctx.send_rel = send_rel;
-    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
+    common.msg_timeout = 200;     /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
     common.msg_role = ROLE_NODE;
 
     set.level_set.op_en = false;
     set.level_set.level = level;
     set.level_set.tid = msg_tid++;
 
-
-    ESP_LOGW("LevelMex", "Message: level: %hd -- destination: 0x%04x -- tid %hhu size common: %d, size set:%d\n",
-             set.level_set.level, common.ctx.addr, set.level_set.tid, (int) sizeof(common), (int) sizeof(set));
+    //ESP_LOGW("LevelMex", "Message: level: %hd -- destination: 0x%04x -- tid %hhu size common: %d, size set:%d\n", set.level_set.level, common.ctx.addr, set.level_set.tid, (int) sizeof(common), (int) sizeof(set));
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set);
     if (err) {
@@ -174,20 +172,15 @@ void send_get_message(uint16_t addr) {
 
 static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
                                                esp_ble_mesh_generic_client_cb_param_t *param) {
-
-    ESP_LOGW(TAG, "%s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x", __func__, event, param->error_code,
-             param->params->ctx.addr, param->params->opcode);
-
     switch (event) {
         case ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT:
-            // ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT");
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET) {
                 ESP_LOGI("MessaggioRicevuto", "LEVEL_GET, level %d receive_ttl: %d",
                          param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
             }
+            ESP_LOGI(TAG, "--- GET_STATE_EVT");
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT:
-            //ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT");
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
                 char level[7];
                 char ttl[4];
@@ -197,9 +190,10 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d receive_ttl: %d",
                          param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
             }
+            ESP_LOGI(TAG, "--- SET_STATE_EVT");
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT:
-            ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT");
+            ESP_LOGI(TAG, "--- PUBLISH_EVT");
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
             /* If failed to receive the responses, these messages will be resend */
@@ -212,7 +206,11 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
         default:
             ESP_LOGI(TAG, "--- DEFAULT");
             break;
+        case ESP_BLE_MESH_GENERIC_CLIENT_EVT_MAX:
+            break;
     }
+    ESP_LOGW(TAG, "%s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x", __func__, event, param->error_code,
+             param->params->ctx.addr, param->params->opcode);
 }
 
 static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,

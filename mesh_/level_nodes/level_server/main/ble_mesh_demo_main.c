@@ -145,22 +145,24 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
             break;
         case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET:
         case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK:
-            if (set->op_en == false) {
-                srv->state.level = set->level;
-            } else {
-                /* TODO: Delay and state transition */
-                srv->state.level = set->level;
-            }
+//            if (set->op_en == false) {
+//                srv->state.level = set->level;
+//            } else {
+//                /* TODO: Delay and state transition */
+//                srv->state.level = set->level;
+//            }
 
+            srv->state.level = set->level;
             if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
                 esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
                                                    sizeof(srv->state.level), (uint8_t *) &srv->state.level);
                 ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d", srv->state.level);
             }
-            if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
-                esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
-                                           (uint8_t *) &srv->state.level, ROLE_NODE);
-            }
+
+//            if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
+//                esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
+//                                           (uint8_t *) &srv->state.level, ROLE_NODE);
+//            }
             example_change_led_state(model, ctx);
             break;
         default:

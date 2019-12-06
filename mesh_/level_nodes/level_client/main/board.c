@@ -165,7 +165,7 @@ void execute_rule() {
         send_message(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET, level, m1.ack_s);
         sprintf(level_c, "%d", level);
 
-        create_message_rapid("S", (char *) level_c, "*");
+        create_message_rapid("S", (char *) level_c, "3");
         level += 1;
         vTaskDelay(xDelay); // delay is milliseconds
     }
@@ -186,8 +186,6 @@ void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
     char **t2_char = str_split(token2, ':');
     char **t3_char = str_split(token3, ':');
 
-
-//TODO rimuovere l'ultimo char e impostare t3 a "false"
     if (tokens0 == '@') {
         m2.addr_s = strtoul((const char *) t1_char[1], NULL, 16);
         m2.level_s = strtoul((const char *) t2_char[1], NULL, 10);
