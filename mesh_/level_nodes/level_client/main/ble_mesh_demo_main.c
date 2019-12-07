@@ -133,7 +133,7 @@ void send_message(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) 
     common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
     common.ctx.send_rel = send_rel;
-    common.msg_timeout = 200;     /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
+    common.msg_timeout = 0; // 200    /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
     common.msg_role = ROLE_NODE;
 
     set.level_set.op_en = false;
@@ -192,9 +192,16 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             }
             ESP_LOGI(TAG, "--- SET_STATE_EVT");
             break;
-        case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT:
-            ESP_LOGI(TAG, "--- PUBLISH_EVT");
+        case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT: {
+            char level[7];
+            char ttl[4];
+            sprintf(level, "%d", param->status_cb.level_status.present_level);
+            sprintf(ttl, "%d", param->params->ctx.recv_ttl);
+            create_message_rapid("P", level, ttl);
+            ESP_LOGI("MessaggioRicevuto", "PUBLISH_EVT, level %d receive_ttl: %d",
+                     param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
             break;
+        }
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
             /* If failed to receive the responses, these messages will be resend */
             //ESP_LOGI(TAG, "--- ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT");

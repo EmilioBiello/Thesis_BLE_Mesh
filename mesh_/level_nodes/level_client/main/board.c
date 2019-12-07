@@ -162,7 +162,7 @@ void execute_rule() {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     for (int i = 0; i < m1.n_mex_s; ++i) {
-        send_message(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET, level, m1.ack_s);
+        send_message(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level, m1.ack_s);
         sprintf(level_c, "%d", level);
 
         create_message_rapid("S", (char *) level_c, "3");

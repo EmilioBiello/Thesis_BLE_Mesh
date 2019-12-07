@@ -156,8 +156,15 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
             if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
                 esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
                                                    sizeof(srv->state.level), (uint8_t *) &srv->state.level);
-                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d", srv->state.level);
+                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d --> ttl: %d - %d", srv->state.level, ctx->recv_ttl,
+                         ctx->send_ttl);
             }
+
+            ctx->send_ttl = 7;
+            esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
+                                               sizeof(srv->state.level), (uint8_t *) &srv->state.level);
+            ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d --> ttl: %d - %d", srv->state.level, ctx->recv_ttl,
+                     ctx->send_ttl);
 
 //            if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
 //                esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
