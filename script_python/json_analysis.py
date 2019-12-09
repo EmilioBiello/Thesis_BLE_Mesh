@@ -2,9 +2,9 @@ import datetime as dt
 import statistics
 import emilio_function as my
 import re
-import sys
 
-regular_expression_mex = "^[R|S],[0-9]{1,5},[0-9|*]$"
+regular_expression_mex = "^[R|S|P],[0-9]{1,5},[0-9]$"
+find_all_matches = "[P|S|R]{1},[0-9]{1,4},[0-7]"
 
 
 # tratta gli error sollevati nella fase precedente e definisce se si tratta di un timeout o di un packet not sent
@@ -84,18 +84,29 @@ def second_analysis(data):
     data['error_second_analysis'] = []
     size_messages = len(messages)
     user_check = False
+    first_send = messages[0]['time']
+    last_received = messages[0]['time']
     for m_id in list_of_m_id:
-        couple = my.get_same_element_index(messages, m_id)  # individuo le coppie di messaggi
+        couple = my.get_mex_couple(messages, m_id)  # individuo le coppie di messaggi
 
         if len(couple) == 2:
             packet_received += 1
-            match_1, e_1 = my.look_into_element(messages[couple[0]])
-            match_2, e_2 = my.look_into_element(messages[couple[1]])
+            match_1, e_1, type_1 = my.look_into_element(messages[couple[0]])
+            match_2, e_2, type_2 = my.look_into_element(messages[couple[1]])
             if not match_1 and not match_2:
                 raise Exception('\x1b[1;31;40m' + ' Error: value unexpected about message_id: ' + e_1 + ' \x1b[0m')
 
-            send_time = messages[couple[0]]['time']
-            receive_time = messages[couple[1]]['time']
+            if type_1:
+                send_time = messages[couple[0]]['time']
+                receive_time = messages[couple[1]]['time']
+            else:
+                receive_time = messages[couple[0]]['time']
+                send_time = messages[couple[1]]['time']
+
+            if first_send > send_time:
+                first_send = send_time
+            if last_received < receive_time:
+                last_received = receive_time
 
             send_datetime = dt.datetime.strptime(send_time, '%Y-%m-%d %H:%M:%S.%f')
             receive_datetime = dt.datetime.strptime(receive_time, '%Y-%m-%d %H:%M:%S.%f')
@@ -133,8 +144,7 @@ def second_analysis(data):
                                                       }, 'string': 'TimeOut or message not sent'})
             # print("m_id: {} --> TimeOut or message not sent".format(m_id))
 
-    first_send = messages[0]['time']
-    last_received = messages[len(messages) - 1]['time']
+    print("Couple founded: {}".format(packet_received))
     first_datetime = dt.datetime.strptime(first_send, '%Y-%m-%d %H:%M:%S.%f')
     last_datetime = dt.datetime.strptime(last_received, '%Y-%m-%d %H:%M:%S.%f')
     test_time = last_datetime - first_datetime
@@ -151,8 +161,8 @@ def second_analysis(data):
         'average_latency_time': statistics.mean(latencies),  # seconds
         'min_latency_time': min(latencies),
         'max_latency_time': max(latencies),
-        'first_send_time': first_send,
-        'last_received_time': last_received,
+        'test_time_first_time': first_send,
+        'test_time_last_time': last_received,
         'test_time': test_time.total_seconds(),
         'test_time_m': test_time_m,
         '_comment': 'The times are expressed in seconds'
@@ -161,31 +171,76 @@ def second_analysis(data):
     return data, user_check
 
 
+def update_data(data, index, string):
+    data['messages'][index]['message_id'] = string[1]
+    data['messages'][index]['type_mex'] = string[0]
+    data['messages'][index]['ttl'] = string[2]
+    return data
+
+
 # risolvo gli eventuali erorri sollevati nella fase di preprocessing
 def resolve_errors_preprocessing(data):
     # data = my.open_file_and_return_data(path=path)
-
     if data['analysis_status'] != -1:
         raise Exception('\x1b[1;31;40m' + ' Resolution error is not necessary or already executed ' + '\x1b[0m')
 
     errors = data['error_first_analysis']
-    second_i_list = list()
-    for i in range(0, len(errors), 2):
-        first_index = errors[i]['index']
-        second_index = errors[i + 1]['index']
-        if second_index - first_index == 1:
-            second_i_list.append(second_index)
-            string = errors[i]['string'] + errors[i + 1]['string']
-            # print("first {} - seconds {} - correct_string {}".format(first_index, second_index, string))
-            data['messages'][first_index]['message_id'] = string.split(',')[1]
-            data['messages'][first_index]['type_mex'] = string.split(',')[0]
-            data['messages'][first_index]['ttl'] = string.split(',')[2]
+    list_1_remove_after_union = list()
 
-    second_i_list.sort(reverse=True)
-    print("Resolve {} errors".format(len(second_i_list)))
-    for i in second_i_list:
+    list_split = list()
+    list_union = list()
+    for i in range(len(errors)):
+        if errors[i]['#_comma'] == 4 and len(re.findall(find_all_matches, errors[i]['string'])) == 2:
+            list_split.append(i)
+        else:
+            list_union.append(i)
+
+    print("list_split: {}".format(list_split))
+    print("list_union: {}".format(list_union))
+
+    only_update = list()
+    for i in list_union:
+        first_index = int(errors[i]['index'])
+        if first_index not in list_1_remove_after_union and first_index not in only_update:
+            j = i + 1
+            if j < len(errors):
+                second_index = int(errors[j]['index'])
+                strings = errors[i]['string'] + errors[j]['string']  # concateno le due stringhe
+                if second_index - first_index == 1:
+                    if re.match(regular_expression_mex, strings):
+                        data = update_data(data, first_index, strings.split(','))
+                        list_1_remove_after_union.append(second_index)
+                    else:
+                        search = re.findall(find_all_matches, strings)
+                        if len(search) == 2:
+                            data = update_data(data, first_index, search[0].split(','))
+                            data = update_data(data, second_index, search[1].split(','))
+                            only_update.append(second_index)
+                        else:
+                            print("Errore numerr {}".format(search))
+                else:
+                    print("Error with couple: {} - {}".format(first_index, second_index))
+
+    for i in list_split:
+        index = int(errors[i]['index'])
+        strings = errors[i]['string']
+        time = errors[i]['time']
+        search = re.findall(find_all_matches, strings)
+        data = update_data(data, index, search[0].split(','))
+
+        s_2 = search[1].split(',')
+        data['messages'].append({
+            'message_id': s_2[1],
+            'type_mex': s_2[0],
+            'ttl': s_2[2],
+            'time': time
+        })
+
+    list_1_remove_after_union.sort(reverse=True)
+    for i in list_1_remove_after_union:
         x = data['messages'].pop(i)
-        # print("index: {} - {}".format(i, x))
+        print(x)
+
     errors.clear()
     data['analysis_status'] = 1
     return data
@@ -202,7 +257,9 @@ def preprocessing(path):
     data['error_first_analysis'] = []
     for i, mex in enumerate(data['messages']):
         if not re.match(regular_expression_mex, mex['message_id']):
-            data['error_first_analysis'].append({'index': i, 'time': mex['time'], 'string': mex['message_id']})
+            counter = mex['message_id'].count(',')
+            data['error_first_analysis'].append(
+                {'index': i, '#_comma': counter, 'time': mex['time'], 'string': mex['message_id']})
             if not check:
                 check = True
         else:
@@ -226,19 +283,32 @@ def analyse_directory():
     path_1 = path[:-5] + "_analysis.json"
 
 
-def get_argument():
-    re_path = "^json_file\/test_[0-9]{4}(_[0-9]{1,2}){2}\/test(_[0-9]{2}){3}-([0-9]{2}(_){0,1}){3}.json$"
-    if len(sys.argv) != 2:
-        raise Exception('\x1b[1;31;40m' + ' Wrong Arguments! ' + '\x1b[0m')
-    elif not re.match(re_path, str(sys.argv[1])):
-        raise Exception('\x1b[1;31;40m' + ' Wrong Path! ' + '\x1b[0m')
-    else:
-        print("Correct path!")
-        return "./" + str(sys.argv[1])
+def call_preprocessing_and_save(path, path_1):
+    my_data = preprocessing(path=path)
+    my.save_json_data_elegant(path=path_1, data=my_data)
+
+
+def call_error_resolution_and_save(path_1):
+    data = my.open_file_and_return_data(path=path_1)
+    data = resolve_errors_preprocessing(data=data)
+    my.save_json_data_elegant(path=path_1, data=data)
+
+
+def call_second_analysis_and_save(path_1):
+    data = my.open_file_and_return_data(path=path_1)
+    data, users = second_analysis(data=data)
+    my.save_json_data_elegant(path=path_1, data=data)
+
+
+def call_third_analysis_and_save(path_1):
+    data = my.open_file_and_return_data(path=path_1)
+    data = third_analysis(data=data)
+    my.save_json_data_elegant(path=path_1, data=data)
 
 
 def main():
-    path = get_argument()
+    # path = my.get_argument()
+    path = "./json_file/test_2019_12_09/test_19_12_09-16_09_25.json"
     path_1 = path[:-5] + "_analysis.json"
     my_data = dict()
 
@@ -274,31 +344,8 @@ def main():
         print(e)
 
 
-def call_preprocessing_and_save(path, path_1):
-    my_data = preprocessing(path=path)
-    my.save_json_data_elegant(path=path_1, data=my_data)
-
-
-def call_error_resolution_and_save(path_1):
-    data = my.open_file_and_return_data(path=path_1)
-    data = resolve_errors_preprocessing(data=data)
-    my.save_json_data_elegant(path=path_1, data=data)
-
-
-def call_second_analysis_and_save(path_1):
-    data = my.open_file_and_return_data(path=path_1)
-    data = second_analysis(data=data)
-    my.save_json_data_elegant(path=path_1, data=data)
-
-
-def call_third_analysis_and_save(path_1):
-    data = my.open_file_and_return_data(path=path_1)
-    data = third_analysis(data=data)
-    my.save_json_data_elegant(path=path_1, data=data)
-
-
 def testing_phase():
-    path = "./json_file/test_2019_12_06/test_19_12_06-12_41_14.json"
+    path = "./json_file/test_2019_12_09/test_19_12_09-21_20_55.json"
     path_1 = path[:-5] + "_analysis.json"
 
     # PREPROCESSING
@@ -316,6 +363,6 @@ def testing_phase():
 
 if __name__ == "__main__":
     try:
-        main()
+        testing_phase()
     except Exception as e:
         print(e)

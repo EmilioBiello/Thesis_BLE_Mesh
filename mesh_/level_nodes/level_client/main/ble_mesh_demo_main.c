@@ -198,8 +198,8 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             sprintf(level, "%d", param->status_cb.level_status.present_level);
             sprintf(ttl, "%d", param->params->ctx.recv_ttl);
             create_message_rapid("P", level, ttl);
-            ESP_LOGI("MessaggioRicevuto", "PUBLISH_EVT, level %d receive_ttl: %d",
-                     param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
+//            ESP_LOGI("MessaggioRicevuto", "PUBLISH_EVT, level %d receive_ttl: %d",
+//                     param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
             break;
         }
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:

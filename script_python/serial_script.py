@@ -20,7 +20,7 @@ regular_expresion_log = "^#,log:(0|1)$"
 save_data = False
 update_my_dictionary = False
 
-esp32 = serial.Serial(port, baud, timeout=0.0001)
+esp32 = serial.Serial(port, baud, timeout=0.000001)
 time.sleep(1)  # give the connection a second to settle
 if esp32.isOpen():
     print(esp32.name + " is open...")
@@ -109,7 +109,6 @@ def add_command_to_dictionary(command):
             'delay': int(command_list[3].split(":")[1])
         }
         data['messages'] = []
-        data['_comment'] = "timeout 200 ms"
         update_my_dictionary = True
     elif update_my_dictionary:
         update_my_dictionary = False

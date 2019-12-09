@@ -3,6 +3,7 @@ import datetime as dt
 import glob
 import os
 import re
+import sys
 
 
 def convert_timestamp(item_data_object):
@@ -46,19 +47,24 @@ def define_directory(info):
     return path
 
 
-def get_same_element_index(list_of_items, value_to_find):
+def get_mex_couple(list_of_items, value_to_find):
     list_of_keys = list()
     for i, dic in enumerate(list_of_items):
         if dic['message_id'] == value_to_find:
             list_of_keys.append(i)
     return list_of_keys
 
+
 # verifico se l'elemento ha i campi (message_id,ttl,type_mex) settati in modo correttto
 def look_into_element(e):
     match = False
-    if re.match("^[0-9]+", e['message_id']) and re.match("^[0-9|*]$", e['ttl']) and re.match("^[R-S]$", e['type_mex']):
+    send = False
+    if re.match("^[0-9]+", e['message_id']) and re.match("^[0-9|*]$", e['ttl']) and re.match("^[R|S|P]$",
+                                                                                             e['type_mex']):
         match = True
-    return match, e['message_id']
+        if re.match("^[S]$", e['type_mex']):
+            send = True
+    return match, e['message_id'], send
 
 
 def convert_timedelta(duration):
@@ -67,3 +73,14 @@ def convert_timedelta(duration):
     minutes = (seconds % 3600) // 60
     seconds = (seconds % 60)
     return hours, minutes, seconds
+
+
+def get_argument():
+    re_path = "^json_file\/test_[0-9]{4}(_[0-9]{1,2}){2}\/test(_[0-9]{2}){3}-([0-9]{2}(_){0,1}){3}.json$"
+    if len(sys.argv) != 2:
+        raise Exception('\x1b[1;31;40m' + ' Wrong Arguments! ' + '\x1b[0m')
+    elif not re.match(re_path, str(sys.argv[1])):
+        raise Exception('\x1b[1;31;40m' + ' Wrong Path! ' + '\x1b[0m')
+    else:
+        print("Correct path!")
+        return "./" + str(sys.argv[1])

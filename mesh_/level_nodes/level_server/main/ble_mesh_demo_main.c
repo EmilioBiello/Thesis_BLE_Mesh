@@ -33,7 +33,7 @@ extern struct _led_state led_state[2];
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
-        .relay = ESP_BLE_MESH_RELAY_ENABLED,
+        .relay = ESP_BLE_MESH_RELAY_DISABLED,
         .beacon = ESP_BLE_MESH_BEACON_ENABLED,
 #if defined(CONFIG_BLE_MESH_FRIEND)
         .friend_state = ESP_BLE_MESH_FRIEND_ENABLED,
@@ -110,8 +110,7 @@ static void example_change_led_state(esp_ble_mesh_model_t *model, esp_ble_mesh_m
     uint8_t elem_count = esp_ble_mesh_get_element_count();
     struct _led_state *led = NULL;
     uint8_t i;
-    printf("%s - [src: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl,
-           status_led);
+    //printf("%s - [src: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl, status_led);
 
     if (ESP_BLE_MESH_ADDR_IS_UNICAST(ctx->recv_dst)) {
         for (i = 0; i < elem_count; i++) {
@@ -153,18 +152,17 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
 //            }
 
             srv->state.level = set->level;
-            if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
-                esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
-                                                   sizeof(srv->state.level), (uint8_t *) &srv->state.level);
-                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d --> ttl: %d - %d", srv->state.level, ctx->recv_ttl,
-                         ctx->send_ttl);
-            }
+//            if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
+//                esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
+//                                                   sizeof(srv->state.level), (uint8_t *) &srv->state.level);
+//                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d --> ttl: %d - %d", srv->state.level, ctx->recv_ttl,
+//                         ctx->send_ttl);
+//            }
 
             ctx->send_ttl = 7;
             esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
                                                sizeof(srv->state.level), (uint8_t *) &srv->state.level);
-            ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d --> ttl: %d - %d", srv->state.level, ctx->recv_ttl,
-                     ctx->send_ttl);
+            printf("PC: level: %d, ttl: %d\n", srv->state.level, ctx->recv_ttl);
 
 //            if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
 //                esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
@@ -243,7 +241,7 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
             if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET ||
                 param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
                 example_handle_gen_level_msg(param->model, &param->ctx, &param->value.set.level);
-                ESP_LOGI(TAG, "LEVEL %d, tid %d", param->value.set.level.level, param->value.set.level.tid);
+                // ESP_LOGI(TAG, "LEVEL %d, tid %d", param->value.set.level.level, param->value.set.level.tid);
                 if (param->value.set.level.op_en) {
                     ESP_LOGI(TAG, "trans_time 0x%02x, delay 0x%02x", param->value.set.level.trans_time,
                              param->value.set.level.delay);
