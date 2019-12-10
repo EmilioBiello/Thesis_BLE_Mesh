@@ -102,7 +102,7 @@ def add_command_to_dictionary(command):
         command_list = command.split(",")
 
         data['analysis_status'] = 0
-        data['command'] = {
+        data['_command'] = {
             'first_char': command_list[0],
             'n_mex': int(command_list[1].split(":")[1]),
             'addr': command_list[2].split(":")[1],

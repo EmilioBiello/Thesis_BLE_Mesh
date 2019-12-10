@@ -25,7 +25,14 @@ def save_json_data(path, data):
 
 
 def save_json_data_elegant(path, data):
-    print("\x1b[1;32;40m Saving: {}\x1b[0m".format(path))
+    done, path_2 = save_on_pend_drive(path_1=path)
+    if done:
+        path = path_2
+        device = "on media/emilio/BLE"
+    else:
+        device = "on PC"
+
+    print("\x1b[1;32;40m Saving {}: {}\x1b[0m".format(device, path))
     with open(path, 'w', encoding='utf-8') as json_file:
         json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=3)
 
@@ -45,6 +52,22 @@ def define_directory(info):
     if not os.path.exists(path=path):
         os.makedirs(path)
     return path
+
+
+def save_on_pend_drive(path_1):
+    media = "/media/emilio/BLE/"
+    done = False
+    path = ""
+    if os.path.exists(path=media):
+        sub_dir = path_1.split('/')[2]
+        file_name = path_1.split('/')[3]
+        directory = media + "/json_file/" + sub_dir + "/"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        path = directory + file_name
+        done = True
+
+    return done, path
 
 
 def get_mex_couple(list_of_items, value_to_find):

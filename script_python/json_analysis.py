@@ -41,10 +41,12 @@ def third_analysis(data):
                 list_lost.append(int(item['index']))
             last = int(item['index'])
 
-    data['analysis']['packet_sent'] = int(int(data['command']['n_mex']) - not_sent)
+    data['analysis']['packet_sent'] = int(int(data['_command']['n_mex']) - not_sent)
     data['analysis']['packet_lost'] = int(lost)
-    data['analysis']['list_lost_mex_id'] = list_lost
-    data['analysis']['list_not_sent_mex_id'] = list_not_sent
+    if len(list_lost) != 0 and len(list_lost) <= 20:
+        data['analysis']['list_lost_mex_id'] = list_lost
+    if len(list_not_sent) != 0 and len(list_not_sent) <= 20:
+        data['analysis']['list_not_sent_mex_id'] = list_not_sent
 
     # print_dict_as_json(data)
     data['analysis_status'] = 3
@@ -178,6 +180,16 @@ def update_data(data, index, string):
     return data
 
 
+def add_element_to_data(data, string, time):
+    data['messages'].append({
+        'message_id': string[1],
+        'type_mex': string[0],
+        'ttl': string[2],
+        'time': time
+    })
+    return data
+
+
 # risolvo gli eventuali erorri sollevati nella fase di preprocessing
 def resolve_errors_preprocessing(data):
     # data = my.open_file_and_return_data(path=path)
@@ -216,8 +228,17 @@ def resolve_errors_preprocessing(data):
                             data = update_data(data, first_index, search[0].split(','))
                             data = update_data(data, second_index, search[1].split(','))
                             only_update.append(second_index)
+                        elif len(search) == 3:
+                            print("1° item --> string: {} --> time: {}".format(errors[i]['string'], errors[i]['time']))
+                            print("2° item --> string: {} --> time: {}".format(errors[j]['string'], errors[j]['time']))
+                            print("\x1b[0;33;40m Split\x1b[0m: {}".format(search))
+                            data = update_data(data=data, index=first_index, string=search[0].split(','))
+                            data = update_data(data=data, index=second_index, string=search[2].split(','))
+                            time = errors[i]['time']
+                            data = add_element_to_data(data=data, string=search[1].split(','), time=time)
+                            only_update.append(second_index)
                         else:
-                            print("Errore numerr {}".format(search))
+                            print("ERRORE [{} - {}] {}".format(first_index, second_index, search))
                 else:
                     print("Error with couple: {} - {}".format(first_index, second_index))
 
@@ -227,19 +248,11 @@ def resolve_errors_preprocessing(data):
         time = errors[i]['time']
         search = re.findall(find_all_matches, strings)
         data = update_data(data, index, search[0].split(','))
-
-        s_2 = search[1].split(',')
-        data['messages'].append({
-            'message_id': s_2[1],
-            'type_mex': s_2[0],
-            'ttl': s_2[2],
-            'time': time
-        })
+        data = add_element_to_data(data=data, string=search[1].split(','), time=time)
 
     list_1_remove_after_union.sort(reverse=True)
     for i in list_1_remove_after_union:
-        x = data['messages'].pop(i)
-        print(x)
+        del data['messages'][i]
 
     errors.clear()
     data['analysis_status'] = 1
@@ -291,6 +304,7 @@ def call_preprocessing_and_save(path, path_1):
 def call_error_resolution_and_save(path_1):
     data = my.open_file_and_return_data(path=path_1)
     data = resolve_errors_preprocessing(data=data)
+    my.print_data_as_json(data)
     my.save_json_data_elegant(path=path_1, data=data)
 
 
@@ -308,7 +322,7 @@ def call_third_analysis_and_save(path_1):
 
 def main():
     # path = my.get_argument()
-    path = "./json_file/test_2019_12_09/test_19_12_09-16_09_25.json"
+    path = "./json_file/test_2019_12_10/test_19_12_10-09_21_16.json"
     path_1 = path[:-5] + "_analysis.json"
     my_data = dict()
 
@@ -345,7 +359,7 @@ def main():
 
 
 def testing_phase():
-    path = "./json_file/test_2019_12_09/test_19_12_09-21_20_55.json"
+    path = "./json_file/test_2019_12_10/test_19_12_10-09_21_16.json"
     path_1 = path[:-5] + "_analysis.json"
 
     # PREPROCESSING
