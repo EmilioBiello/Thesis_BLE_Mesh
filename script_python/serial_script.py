@@ -13,7 +13,7 @@ baud = 115200
 data = {}
 event = Event()
 regular_expresion_command = "^(e|p|q)$"
-regular_expresion_set_get = "^@,addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4})(,level:[0-9]{1,5}(,ack:[0|1]){0,1}){0,1}$"
+regular_expresion_set_get = "^@,addr:(((0x){1}[a-fA-F-0-9]{4})|([0-9]{1,2}))(,level:[0-9]{1,5}(,ack:[0|1]){0,1}){0,1}$"
 regular_expresion_rule = "^&,n_mex:[0-9]{1,5},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6}$"
 regular_expresion_log = "^#,log:(0|1)$"
 
@@ -78,7 +78,8 @@ def read_from_serial():
         if len(received_data) > 0:
             update_dictionary(dt.datetime.now(), received_data.decode("utf-8"))
             count += 1
-            print("************ " + str(count))
+            if count % 50 == 0:
+                print("************ " + str(count))
             # print('\x1b[1;31;40m' + "************" + '\x1b[0m   ')
             # print("Receiving...\n" + received_data.decode("utf-8"))
 

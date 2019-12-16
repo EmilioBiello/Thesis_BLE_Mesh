@@ -25,11 +25,12 @@ def save_json_data(path, data):
 
 
 def save_json_data_elegant(path, data):
-    done, path_2 = save_on_pend_drive(path_1=path)
+    done, path_2 = get_path_media_or_PC(path_1=path)
     if done:
         path = path_2
         device = "on media/emilio/BLE"
     else:
+        path = path_2
         device = "on PC"
 
     print("\x1b[1;32;40m Saving {}: {}\x1b[0m".format(device, path))
@@ -37,7 +38,9 @@ def save_json_data_elegant(path, data):
         json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=3)
 
 
-def open_file_and_return_data(path):
+def open_file_and_return_data(code, path):
+    if code == 1:
+        path = get_path_media_or_PC(path_1=path)
     with open(path) as json_file:
         data = json.load(json_file)
     return data
@@ -54,18 +57,22 @@ def define_directory(info):
     return path
 
 
-def save_on_pend_drive(path_1):
+def get_path_media_or_PC(path_1):
     media = "/media/emilio/BLE/"
-    done = False
-    path = ""
+    sub_dir = path_1.split('/')[1]
+    file_name = path_1.split('/')[2]
+
     if os.path.exists(path=media):
-        sub_dir = path_1.split('/')[2]
-        file_name = path_1.split('/')[3]
-        directory = media + "/json_file/" + sub_dir + "/"
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        directory = media + "json_file/" + sub_dir + "/"
         path = directory + file_name
         done = True
+    else:
+        directory = "./json_file/" + sub_dir + "/"
+        path = directory + file_name
+        done = False
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
     return done, path
 

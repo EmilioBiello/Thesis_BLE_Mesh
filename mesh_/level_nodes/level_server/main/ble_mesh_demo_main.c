@@ -159,7 +159,7 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
 //                         ctx->send_ttl);
 //            }
 
-            ctx->send_ttl = 7;
+            ctx->send_ttl = 3;
             esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
                                                sizeof(srv->state.level), (uint8_t *) &srv->state.level);
             printf("PC: level: %d, ttl: %d\n", srv->state.level, ctx->recv_ttl);

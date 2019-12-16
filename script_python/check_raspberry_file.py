@@ -3,7 +3,7 @@ import re
 
 
 def get_sent_mex(path):
-    data = my.open_file_and_return_data(path=path)
+    data = my.open_file_and_return_data(code=0, path=path)
     mex = data['messages']
 
     set_element = set()
@@ -15,7 +15,7 @@ def get_sent_mex(path):
 
 
 def get_received_mex(path):
-    data = my.open_file_and_return_data(path=path)
+    data = my.open_file_and_return_data(code=0, path=path)
 
     set_element = set()
     for item in data['messages']:
@@ -30,7 +30,6 @@ def get_received_mex(path):
 def operation_with_set(sent, received):
     diff = sent.difference(received)
     print("Difference: len: {}".format(len(diff)))
-
 
 
 def main():
