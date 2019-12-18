@@ -5,6 +5,8 @@ import os
 import re
 import sys
 
+path_media = "/media/emilio/BLE/"
+
 
 def convert_timestamp(item_data_object):
     if isinstance(item_data_object, dt.datetime):
