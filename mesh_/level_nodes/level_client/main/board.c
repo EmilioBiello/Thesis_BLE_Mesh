@@ -100,7 +100,11 @@ void create_message_rapid(char *opcode, char *level, char *ttl) {
 
     send_data_to_pc(str3);
     free(str3);
-    ESP_LOGI("PC", "[opcode: %s, level: %s ttl: %s]", opcode, level, ttl);
+    if (strcmp(ttl, "0") == 0) {
+        ESP_LOGE("PC", "[opcode: %s, level_error: %s ttl: %s]", opcode, level, ttl);
+    } else {
+        ESP_LOGI("PC", "[opcode: %s, level: %s ttl: %s]", opcode, level, ttl);
+    }
 }
 
 uint8_t count_tokens(char *a_str, const char a_delim) {
@@ -158,12 +162,13 @@ void execute_rule() {
     char level_c[7];
 
     const TickType_t xDelay = m1.delay_s / portTICK_PERIOD_MS;
-    printf("Start after first delay: %d --> %d\n", m1.delay_s, xDelay);
+    printf("Start after first delay: %d --> delay loop: %d\n", m1.delay_s, xDelay);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     for (int i = 0; i < m1.n_mex_s; ++i) {
         send_message(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level, m1.ack_s);
         sprintf(level_c, "%d", level);
+
 
         create_message_rapid("S", (char *) level_c, "3");
         level += 1;

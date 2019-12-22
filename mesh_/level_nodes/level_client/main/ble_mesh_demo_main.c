@@ -28,6 +28,7 @@ static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 static uint16_t node_net_idx = ESP_BLE_MESH_KEY_UNUSED;
 static uint16_t node_app_idx = ESP_BLE_MESH_KEY_UNUSED;
 static uint8_t msg_tid = 0x1;
+int my_info_level = 0;
 
 static esp_ble_mesh_client_t bleMeshClient;
 
@@ -139,8 +140,7 @@ void send_message(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) 
     set.level_set.op_en = false;
     set.level_set.level = level;
     set.level_set.tid = msg_tid++;
-
-    //ESP_LOGW("LevelMex", "Message: level: %hd -- destination: 0x%04x -- tid %hhu size common: %d, size set:%d\n", set.level_set.level, common.ctx.addr, set.level_set.tid, (int) sizeof(common), (int) sizeof(set));
+    my_info_level = level;
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set);
     if (err) {
@@ -180,7 +180,8 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             }
             ESP_LOGI(TAG, "--- GET_STATE_EVT");
             break;
-        case ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT:
+        case ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT: {
+
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
                 char level[7];
                 char ttl[4];
@@ -189,17 +190,20 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 create_message_rapid("R", level, ttl);
                 ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d receive_ttl: %d",
                          param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
+            } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
+                char info_level[7];
+                sprintf(info_level, "%d", my_info_level);
+                create_message_rapid("E", info_level, "0");
             }
-            ESP_LOGI(TAG, "--- SET_STATE_EVT");
+            ESP_LOGI(TAG, "--- SET_STATE_EVT 0x%x", param->params->opcode);
             break;
+        }
         case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT: {
             char level[7];
             char ttl[4];
             sprintf(level, "%d", param->status_cb.level_status.present_level);
             sprintf(ttl, "%d", param->params->ctx.recv_ttl);
             create_message_rapid("P", level, ttl);
-//            ESP_LOGI("MessaggioRicevuto", "PUBLISH_EVT, level %d receive_ttl: %d",
-//                     param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
             break;
         }
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
@@ -211,7 +215,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             }
             break;
         default:
-            ESP_LOGI(TAG, "--- DEFAULT");
+            ESP_LOGI(TAG, "--- DEFAULT opcode is 0x%x", param->params->opcode);
             break;
         case ESP_BLE_MESH_GENERIC_CLIENT_EVT_MAX:
             break;
