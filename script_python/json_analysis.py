@@ -4,12 +4,10 @@ import emilio_function as my
 import re
 import time
 
-regular_expression_mex = "^[R|S|P],[0-9]{1,5},[0-9]$"
-find_all_matches = "[P|S|R]{1},[0-9]{1,4},[0-7]"
-
+relay = 2  # 0,1,2
 path_pc = "./"
 path_media = "/media/emilio/BLE/"
-file_name = "json_file/test_2019_12_14/test_19_12_14-10_30_08.json"
+file_name = "json_file/test_2019_12_24/test_19_12_24-19_24_04.json"
 path = path_pc + file_name
 
 preprocessing_path = file_name[:-5] + "_preprocessing.json"
@@ -17,6 +15,11 @@ analysis_path = file_name[:-5] + "_analysis.json"
 
 path_1 = path_media + file_name[:-5] + "_preprocessing.json"
 path_2 = path_media + file_name[:-5] + "_analysis.json"
+
+regular_expression_mex = "^[R|S|P|E],[0-9]{1,5},[0-9]$"
+find_all_matches = "[P|S|R|E],[0-9]{1,5},[0-9]"
+
+error_ttl = list()
 
 
 # tratta gli error sollevati nella fase precedente e definisce se si tratta di un timeout o di un packet not sent
@@ -54,6 +57,7 @@ def third_analysis(data):
                 list_lost.append(int(item['index']))
             last = int(item['index'])
 
+    not_sent = not_sent + data['analysis']['packet_not_sent']
     data['analysis']['packet_sent'] = int(int(data['_command']['n_mex']) - not_sent)
     data['analysis']['packet_not_sent'] = int(not_sent)
     data['analysis']['packet_lost'] = int(lost)
@@ -63,19 +67,41 @@ def third_analysis(data):
         data['analysis']['list_not_sent_mex_id'] = list_not_sent
 
     data['analysis_status'] = 3
-    _diff_mex_ = int(data['analysis']['packet_sent']) - int(data['analysis']['packet_received']) - int(
+    diff_mex_1 = int(data['_command']['n_mex']) - int(data['analysis']['packet_sent']) - data['analysis'][
+        'packet_not_sent']
+    diff_mex_2 = int(data['analysis']['packet_sent']) - int(data['analysis']['packet_received']) - int(
         data['analysis']['packet_lost'])
     print("Packet Sent: {}".format(data['analysis']['packet_sent']))
     print("Packet Received: {}".format(data['analysis']['packet_received']))
     print("Packet Lost: {}".format(data['analysis']['packet_lost']))
     print("Packet Not Sent: {}".format(data['analysis']['packet_not_sent']))
-    print("Differences: {}".format(_diff_mex_))
+    print("Diff packets [total, sent, not_sent] --> {}".format(diff_mex_1))
+    print("Diff packets [send, received, lost]  --> {}".format(diff_mex_2))
 
-    if _diff_mex_ == 0:
-        print("Correct analysis")
+    if diff_mex_2 == 0 and diff_mex_1 == 0:
+        print("\x1b[0;32;40m Correct analysis \x1b[0m")
     else:
-        print("Error about counting in analysis [lost, sent, received] difference: {}".format(_diff_mex_))
+        print("\x1b[0;31;40m Error about counting in analysis [lost, sent, received] difference: {}\x1b[0m".format(
+            diff_mex_2))
+    print("\x1b[1;34;40m addr:{a}, delay:{d} n_mex:{n} [RELAY: {r}]\x1b[0m".format(a=data['_command']['addr'],
+                                                                                   d=data['_command']['delay'],
+                                                                                   n=data['_command']['n_mex'],
+                                                                                   r=relay))
     return data
+
+
+def error_second_analysis(m_id, index, size_messages, new_dataset, messages):
+    if index + 1 < size_messages:
+        next_mex = messages[index + 1]
+    else:
+        # last message
+        next_mex = messages[index]
+    new_dataset['error_second_analysis'].append(
+        {'index': int(m_id), 'next_mex': {'message_id': next_mex['message_id'],
+                                          'type_mex': next_mex['type_mex']
+                                          },
+         'string': 'TimeOut or message not sent'})
+    return new_dataset
 
 
 # calcolo i tempi per ciascuna coppia di mex [sent --> received] e individuo eventuali errori [timeout, packet not set]
@@ -84,6 +110,7 @@ def second_analysis(data):
     print("- {}".format(second_analysis.__name__))
     # data = my.open_file_and_return_data(path=path)
     messages = data['messages']
+    command = data['_command']
 
     if len(data['error_first_analysis']) > 0:
         raise Exception('\x1b[1;31;40m' + ' Error: List \'error_first_analysis\' not empty ' + '\x1b[0m')
@@ -100,108 +127,131 @@ def second_analysis(data):
         list_of_m_id.remove('0')
 
     packet_received = 0
+    packet_not_sent = 0
     differences = list()
     latencies = list()
     dict_analysis = dict()
-    new_data = {'error_second_analysis': []}
+    new_dataset = {'error_second_analysis': [], 'error_network_buffer': []}
     size_messages = len(messages)
     user_check = False
+    error = False
     first_send = messages[0]['time']
     last_received = messages[0]['time']
     min_diff_string = ""
     max_diff_string = ""
     min_diff_time = ""
     max_diff_time = ""
+    match_error = "^[E]$"
     for m_id in list_of_m_id:
         couple = my.get_mex_couple(messages, m_id)  # individuo le coppie di messaggi
 
         if len(couple) == 2:
-            packet_received += 1
             match_1, e_1, type_1 = my.look_into_element(messages[couple[0]])
             match_2, e_2, type_2 = my.look_into_element(messages[couple[1]])
-            if not match_1 and not match_2:
+            if not match_1 or not match_2:
                 raise Exception('\x1b[1;31;40m' + ' Error: value unexpected about message_id: ' + e_1 + ' \x1b[0m')
 
-            if type_1:
-                send_time = messages[couple[0]]['time']
-                receive_time = messages[couple[1]]['time']
+            if analysis_string_check(match_error, messages[couple[0]]['type_mex'], messages[couple[1]]['type_mex']):
+                if analysis_string_check("^[P]$", messages[couple[0]]['type_mex'], messages[couple[1]]['type_mex']):
+                    print("erororre {}".format(messages[couple[1]]['type_mex']))
+
+                if not user_check:
+                    user_check = True
+                # add to list 'error_network_buffer' an index about mex not sent
+                new_dataset['error_network_buffer'].append(int(messages[couple[0]]['message_id']))
+                packet_not_sent += 1
+
+                # raise Exception('\x1b[1;31;40m' + ' Errors -->1 [' + messages[couple[0]]['type_mex'] + ']\x1b[0m')
             else:
-                receive_time = messages[couple[0]]['time']
-                send_time = messages[couple[1]]['time']
+                if type_1 == type_2:
+                    raise Exception(
+                        '\x1b[1;31;40m' + ' Error: couple with same type: ' + messages[couple[0]]['type_mex'] + ' - ' +
+                        messages[couple[1]]['type_mex'] + ' \x1b[0m')
+                if type_1:
+                    send_time = messages[couple[0]]['time']
+                    receive_time = messages[couple[1]]['time']
+                    analysis_ttl(send_mex=messages[couple[0]]['ttl'], receive_mex=messages[couple[1]]['ttl'],
+                                 time=receive_time)
+                else:
+                    receive_time = messages[couple[0]]['time']
+                    send_time = messages[couple[1]]['time']
+                    analysis_ttl(send_mex=messages[couple[1]]['ttl'], receive_mex=messages[couple[0]]['ttl'],
+                                 time=receive_time)
 
-            if first_send > send_time:
-                first_send = send_time
-            if last_received < receive_time:
-                last_received = receive_time
+                if first_send > send_time:
+                    first_send = send_time
+                if last_received < receive_time:
+                    last_received = receive_time
 
-            send_datetime = dt.datetime.strptime(send_time, '%Y-%m-%d %H:%M:%S.%f')
-            receive_datetime = dt.datetime.strptime(receive_time, '%Y-%m-%d %H:%M:%S.%f')
+                packet_received += 1
+                send_datetime = dt.datetime.strptime(send_time, '%Y-%m-%d %H:%M:%S.%f')
+                receive_datetime = dt.datetime.strptime(receive_time, '%Y-%m-%d %H:%M:%S.%f')
 
-            # timedelta output (days=0, seconds=0, microseconds=0, milliseconds=0, minutes=0, hours=0, weeks=0)
-            # 1 millisecond --> 1000 microseconds
-            difference = receive_datetime - send_datetime
-            differences.append(difference.total_seconds())
-            latencies.append(difference.total_seconds() / 2)
+                # timedelta output (days=0, seconds=0, microseconds=0, milliseconds=0, minutes=0, hours=0, weeks=0)
+                # 1 millisecond --> 1000 microseconds
+                difference = receive_datetime - send_datetime
+                differences.append(difference.total_seconds())
+                latencies.append(difference.total_seconds() / 2)
 
-            if int(m_id) < 10:
-                m_id = "0" + m_id
+                if int(m_id) < 10:
+                    m_id = "0" + m_id
 
-            dict_analysis[m_id] = {
-                'send_time': send_time,
-                'status_time': receive_time,
-                'difference': difference.total_seconds(),
-                'latency': (difference.total_seconds() / 2)
-            }
+                dict_analysis[m_id] = {
+                    'send_time': send_time,
+                    'status_time': receive_time,
+                    'difference': difference.total_seconds(),
+                    'latency': (difference.total_seconds() / 2)
+                }
 
-            if min_diff_time == "":
-                min_diff_time = difference.total_seconds()
-                min_diff_string = m_id
-            elif difference.total_seconds() < min_diff_time:
-                min_diff_time = difference.total_seconds()
-                min_diff_string = m_id
+                if min_diff_time == "":
+                    min_diff_time = difference.total_seconds()
+                    min_diff_string = m_id
+                elif difference.total_seconds() < min_diff_time:
+                    min_diff_time = difference.total_seconds()
+                    min_diff_string = m_id
 
-            if max_diff_time == "":
-                max_diff_time = difference.total_seconds()
-                max_diff_string = m_id
-            elif difference.total_seconds() > max_diff_time:
-                max_diff_time = difference.total_seconds()
-                max_diff_string = m_id
+                if max_diff_time == "":
+                    max_diff_time = difference.total_seconds()
+                    max_diff_string = m_id
+                elif difference.total_seconds() > max_diff_time:
+                    max_diff_time = difference.total_seconds()
+                    max_diff_string = m_id
 
             # print("m_id: {} --> {}".format(m_id, dict_analysis[m_id]['difference']))
         elif len(couple) == 1:
             if not user_check:
                 user_check = True
-            if couple[0] + 1 < size_messages:
-                next_mex = messages[couple[0] + 1]
-                new_data['error_second_analysis'].append(
-                    {'index': int(m_id), 'next_mex': {'message_id': next_mex['message_id'],
-                                                      'type_mex': next_mex['type_mex']
-                                                      },
-                     'string': 'TimeOut or message not sent'})
-            else:
-                # last message
-                new_data['error_second_analysis'].append(
-                    {'index': int(m_id), 'next_mex': {'message_id': messages[couple[0]]['message_id'],
-                                                      'type_mex': messages[couple[0]]['type_mex']
-                                                      }, 'string': 'TimeOut or message not sent'})
+            new_dataset = error_second_analysis(m_id=m_id, index=couple[0], size_messages=size_messages,
+                                                new_dataset=new_dataset, messages=messages)
         else:
-            print("EROROR: {} --> {}".format(m_id, len(couple)))
-            print("{} --- {} --- {}".format(messages[couple[0]]['time'], messages[couple[1]]['time'],
-                                             messages[couple[2]]['time']))
-            # print("m_id: {} --> TimeOut or message not sent".format(m_id))
+            print("EROROR: {c} couple with same message_id [{id}]".format(id=m_id, c=len(couple)))
+            for i in range(len(couple)):
+                print("type_mex: {t_m}, mex_id: {m_id}, ttl: {ttl}, time: [{t}]".format(
+                    m_id=messages[couple[i]]['message_id'], t=messages[couple[i]]['time'],
+                    t_m=messages[couple[i]]['type_mex'], ttl=messages[couple[i]]['ttl']))
+            error = True
 
-    print("Couple founded: {}".format(packet_received))
+    # print("Size: Duplicate message Received: {}".format(len(error_ttl)))
+    if error:
+        raise Exception("\x1b[1;31;40m Error second_analysis --> user_check \x1b[0m")
+
     first_datetime = dt.datetime.strptime(first_send, '%Y-%m-%d %H:%M:%S.%f')
     last_datetime = dt.datetime.strptime(last_received, '%Y-%m-%d %H:%M:%S.%f')
     test_time = last_datetime - first_datetime
     hours, minutes, seconds = my.convert_timedelta(test_time)
-    print("Tempo test: {}:{}.{} [mm:s.us]".format(minutes, seconds, test_time.microseconds))
+    mex_sent = int(data['_command']['n_mex']) - packet_not_sent
+    print("--- Mex sent: {}".format(mex_sent))
+    print("--- Mex sent and received: {}".format(packet_received))
+    print("--- Mex not sent: {}".format(packet_not_sent))
+    print("--- Tempo test: {}:{}.{} [mm:s.us]".format(minutes, seconds, test_time.microseconds))
     test_time_m = str(minutes) + " M, " + str(seconds) + " s"
 
-    new_data['second_analysis'] = dict_analysis
-    new_data['_command'] = data['_command']
-    new_data['analysis'] = {
+    new_dataset['second_analysis'] = dict_analysis
+    new_dataset['_command'] = data['_command']
+    new_dataset['analysis'] = {
         'packet_received': int(packet_received),
+        'packet_sent': int(mex_sent),
+        'packet_not_sent': int(packet_not_sent),
         'average_diff_time': statistics.mean(differences),  # seconds
         'min_diff_time': min(differences),
         # 'min_diff_time_2': min_diff_time,
@@ -218,15 +268,55 @@ def second_analysis(data):
         'test_time_m': test_time_m,
         '_comment': 'The times are expressed in seconds'
     }
-    new_data['analysis_status'] = 2
-    return new_data, user_check
+    new_dataset['analysis_status'] = 2
+    return new_dataset, user_check
 
 
-def update_data(data, index, string):
+def analysis_ttl(send_mex, receive_mex, time):
+    send_ttl = "3"
+    str_ttl = ["3", "2", "1"]
+    if not str(send_mex) == send_ttl:
+        raise Exception('\x1b[1;31;40m' + ' Error analysis_ttl --> send_: ' + time + '\x1b[0m')
+    if not str(receive_mex) == str_ttl[relay]:
+        error_ttl.append(time)
+        raise Exception('\x1b[1;31;40m' + ' Error analysis_ttl --> receive_: ' + time + '\x1b[0m')
+
+
+def analysis_string_check(pattern, string_1, string_2):
+    if re.match(pattern=pattern, string=string_1):
+        match_1 = True
+    else:
+        match_1 = False
+    if re.match(pattern=pattern, string=string_2):
+        match_2 = True
+    else:
+        match_2 = False
+    return match_1 or match_2
+
+
+def analysis_string(string, time_1, info):
+    error = False
+    try:
+        check_string_mex(string)
+    except Exception as e:
+        print("Error: [{}] --> string: {} time: [{}]".format(info, e, time_1))
+        error = True
+    finally:
+        return error
+
+
+def check_string_mex(string):
+    if not re.match("^[0-9]{1,5}$", string[1]) or not re.match("^[0-9]$", string[2]) or not re.match("^[R|S|P|E]$",
+                                                                                                     string[0]):
+        raise Exception('Error check: type: {}, id: {}, ttl: {}'.format(string[0], string[1], string[2]))
+
+
+def update_data(data, index, string, t_1, info):
+    error = analysis_string(string, t_1, info)
     data['messages'][index]['message_id'] = string[1]
     data['messages'][index]['type_mex'] = string[0]
     data['messages'][index]['ttl'] = string[2]
-    return data
+    return data, error
 
 
 def add_element_to_data(data, string, time):
@@ -240,16 +330,16 @@ def add_element_to_data(data, string, time):
 
 
 def split_string_3(data, s_1, s_2, t_1, t_2, first_index, second_index, search):
-    print("1° item --> string: {} --> time: {}".format(s_1, t_1))
-    print("2° item --> string: {} --> time: {}".format(s_2, t_2))
-    print("\x1b[0;33;40m Split: {} \x1b[0m".format(search))
+    # print("1° item --> string: {} --> time: {}".format(s_1, t_1))
+    # print("2° item --> string: {} --> time: {}".format(s_2, t_2))
+    # print("\x1b[0;33;40m Split: {} \x1b[0m".format(search))
+    # print("-----------")
 
     # Prendo il tempo relativo al first_index per il mex di send
-    data = update_data(data=data, index=first_index, string=search[0].split(','))
-    data = update_data(data=data, index=second_index, string=search[2].split(','))
+    data, error = update_data(data=data, index=first_index, string=search[0].split(','), t_1=t_1, info="6")
+    data, error = update_data(data=data, index=second_index, string=search[2].split(','), t_1=t_1, info="7")
     data = add_element_to_data(data=data, string=search[1].split(','), time=t_1)
-    print("-----------")
-    return data
+    return data, error
 
 
 # risolvo gli eventuali erorri sollevati nella fase di preprocessing
@@ -265,13 +355,14 @@ def resolve_errors_preprocessing(data):
     list_split = list()
     list_union = list()
     for i in range(len(errors)):
-        if errors[i]['#_comma'] == 4 and len(re.findall(find_all_matches, errors[i]['string'])) == 2:
+        if errors[i]['#_comma'] % 2 == 0 and len(re.findall(find_all_matches, errors[i]['string'])) >= 2:
             list_split.append(i)
         else:
             list_union.append(i)
 
     only_update = list()
     error = False
+    error_up_data = False
     for i in list_union:
         first_index = int(errors[i]['index'])
         if first_index not in list_1_remove_after_union and first_index not in only_update:
@@ -280,38 +371,51 @@ def resolve_errors_preprocessing(data):
                 second_index = int(errors[j]['index'])
                 strings = errors[i]['string'] + errors[j]['string']  # concateno le due stringhe
                 if second_index - first_index == 1:
+                    my_time = errors[i]['time']
                     if re.match(regular_expression_mex, strings):
-                        data = update_data(data, first_index, strings.split(','))
+                        data, error_up_data = update_data(data, first_index, strings.split(','), my_time, "1")
                         list_1_remove_after_union.append(second_index)
                     else:
                         search = re.findall(find_all_matches, strings)
                         if len(search) == 1:
-                            data = update_data(data, first_index, strings.split(','))
+                            data, error_up_data = update_data(data, first_index, search[0].split(','), my_time, "2")
                             list_1_remove_after_union.append(second_index)
                         elif len(search) == 2:
-                            data = update_data(data, first_index, search[0].split(','))
-                            data = update_data(data, second_index, search[1].split(','))
+                            data, error_up_data = update_data(data, first_index, search[0].split(','), my_time, "3")
+                            data, error_up_data = update_data(data, second_index, search[1].split(','), my_time, "4")
                             only_update.append(second_index)
                         elif len(search) == 3:
-                            data = split_string_3(data=data, s_1=errors[i]['string'], s_2=errors[j]['string'],
-                                                  t_1=errors[i]['time'], t_2=errors[j]['time'], first_index=first_index,
-                                                  second_index=second_index, search=search)
+                            data, error_up_data = split_string_3(data=data, s_1=errors[i]['string'],
+                                                                 s_2=errors[j]['string'],
+                                                                 t_1=errors[i]['time'], t_2=errors[j]['time'],
+                                                                 first_index=first_index,
+                                                                 second_index=second_index, search=search)
                             only_update.append(second_index)
                         else:
                             error = True
                             print("ERRORE [{} - {}] len:{} {}".format(first_index, second_index, len(search), search))
                 else:
                     error = True
-                    print("Error with couple: {} - {} [{}] [{}]".format(first_index, second_index, strings,
-                                                                        errors[i]['time']))
+                    print("\x1b[1;31;40m Error with couple: {} - {} \x1b[0m string: [{}], time: [{}]".format(
+                        first_index, second_index, strings, errors[i]['time']))
+                    print("---------------")
+        if error_up_data:
+            error = True
 
     for i in list_split:
         index = int(errors[i]['index'])
         strings = errors[i]['string']
         time = errors[i]['time']
         search = re.findall(find_all_matches, strings)
-        data = update_data(data, index, search[0].split(','))
-        data = add_element_to_data(data=data, string=search[1].split(','), time=time)
+        if len(search) > 2:
+            print("long string: ", strings, " time: ", time)
+        for j in range(len(search)):
+            if j == 0:
+                data, error_up_data = update_data(data, index, search[j].split(','), time, "5")
+            else:
+                data = add_element_to_data(data=data, string=search[j].split(','), time=time)
+        if error_up_data:
+            error = True
 
     list_1_remove_after_union.sort(reverse=True)
     for i in list_1_remove_after_union:
@@ -319,6 +423,8 @@ def resolve_errors_preprocessing(data):
 
     if not error:
         errors.clear()
+    else:
+        raise Exception("\x1b[1;31;40m Error resolve_errors_preprocessing \x1b[0m")
 
     data['analysis_status'] = 1
     return data
@@ -334,6 +440,10 @@ def preprocessing(path):
         raise Exception('\x1b[1;31;40m' + ' Preprocessing is already executed ' + '\x1b[0m')
 
     data['error_first_analysis'] = []
+    print("\x1b[1;34;40m addr:{a}, delay:{d} n_mex:{n} [RELAY: {r}]\x1b[0m".format(a=data['_command']['addr'],
+                                                                                   d=data['_command']['delay'],
+                                                                                   n=data['_command']['n_mex'],
+                                                                                   r=relay))
     for i, mex in enumerate(data['messages']):
         if not re.match(regular_expression_mex, mex['message_id']):
             counter = mex['message_id'].count(',')
@@ -343,9 +453,11 @@ def preprocessing(path):
                 check = True
         else:
             string = mex['message_id']
-            mex['message_id'] = string.split(',')[1]
-            mex['type_mex'] = string.split(',')[0]
-            mex['ttl'] = string.split(',')[2]
+            string = string.split(',')
+            check_string_mex(string)
+            mex['message_id'] = string[1]
+            mex['type_mex'] = string[0]
+            mex['ttl'] = string[2]
 
     data['analysis_status'] = -1 if check else 1
 
@@ -430,7 +542,7 @@ def testing_phase():
 
     # Third Analysis
     call_third_analysis_and_save(path_s=analysis_path)
-    time.sleep(1)
+    # time.sleep(1)
 
 
 if __name__ == "__main__":

@@ -91,6 +91,7 @@ def read_from_serial():
                     print('\x1b[6;30;42m' + " Saved! " + '\x1b[0m')
                     directory = my.define_directory(info="")
                     path = directory + '/test_' + dt.datetime.now().strftime("%y_%m_%d-%H_%M_%S") + '.json'
+                    print(path)
                     my.save_json_data_elegant(path=path, data=data)
             else:
                 print("goodbye")

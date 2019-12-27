@@ -69,6 +69,8 @@ def get_path_media_or_PC(path_1):
         path = directory + file_name
         done = True
     else:
+        sub_dir = path_1.split('/')[2]
+        file_name = path_1.split('/')[3]
         directory = "./json_file/" + sub_dir + "/"
         path = directory + file_name
         done = False
@@ -91,7 +93,7 @@ def get_mex_couple(list_of_items, value_to_find):
 def look_into_element(e):
     match = False
     send = False
-    if re.match("^[0-9]+", e['message_id']) and re.match("^[0-9|*]$", e['ttl']) and re.match("^[R|S|P]$",
+    if re.match("^[0-9]+", e['message_id']) and re.match("^[0-9|*]$", e['ttl']) and re.match("^[R|S|P|E]$",
                                                                                              e['type_mex']):
         match = True
         if re.match("^[S]$", e['type_mex']):

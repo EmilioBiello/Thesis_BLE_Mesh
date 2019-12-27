@@ -16,7 +16,7 @@ e_time_0 = ["14_30", "15_30", "17_40", "17_00", "17_40"]
 e_time_1 = ["10_30", "11_30", "17_00", "15_15", "16_00"]
 e_time_2 = ["9_55", "11_00", "11_40", "12_30", "19_00"]
 
-info = 4  # 0,1,2,3,4
+info = 1  # 0,1,2,3,4
 topic = "2"  # Number of Relay
 path_analysis = my.path_media + "json_file/test_2019_12_14/*_analysis.json"
 delay = "delay_" + str(my_delay[info])
@@ -279,25 +279,71 @@ def plot_mean():
 
 def plot_points(data, index):
     x = list()
-    y = list()
+    latency = list()
+    if index == 0:
+        color = "green"
+    elif index == 1:
+        color = "red"
+    elif index == 2:
+        color = "blue"
+    elif index == 3:
+        color = "orange"
+    elif index == 4:
+        color = "lime"
+    else:
+        color = "black"
+
     for key, value in data['second_analysis'].items():
         x.append(int(key))
-        y.append(value['latency'])
+        latency.append(value['latency'])
 
-    # plt.plot(x, y, color='green', linestyle='dashed', linewidth=1, marker='o', markerfacecolor='blue', markersize=6)
-    plt.scatter(x, y, label="stars", color="green", marker="*", s=3)
+    text = "rilevazione " + str(index + 1)
+    plt.scatter(x, latency, label=text, color=color, marker="*", s=5)
 
     # LABEL x and y axis
-    plt.ylim(0, max(y))
-    plt.xlim(1, len(x))
+    # plt.ylim(0, max(y))
+    # plt.xlim(1, len(x))
 
-    plt.xlabel('x - axis')
-    plt.ylabel('y - axis')
+    plt.xlabel('x - packets')
+    plt.ylabel('y - latency [seconds]')
 
-    title_str = "Rilevazione_" + str(index)
+
+def combine_two_plot():
+    pdr = list()
+    goodput = list()
+    x = list()
+    for i in range(1, 5):
+        text = 'rilevazione_' + str(i)
+        pdr.append(my_dictionary[text]['graph']['PDR'])
+        goodput.append(my_dictionary[text]['graph']['goodput'])
+        x.append(i)
+
+    fig, ax1 = plt.subplots()
+    color = 'tab:red'
+    ax1.set_xlabel('rilevazioni')
+    ax1.set_ylabel('Packet Delivery Ratio', color=color)
+    ax1.scatter(x, pdr, color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    color = 'tab:blue'
+    ax2.set_ylabel('Goodput (byte/s)', color=color)  # we already handled the x-label with ax1
+    ax2.scatter(x, goodput, color=color)
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    plt.show()
+
+
+def manage_plot():
+    title_str = "Relay_" + str(topic) + " delay_" + str(my_delay[info]) + "ms"
     plt.title(title_str)
     plt.legend()
 
+    # name = my.path_media + "json_file/" + plot_dir + "/" + str(delay) + "_" + label_ + '.png'
+    # print("Saving png: {}".format(name))
+    # plt.savefig(name)
     plt.show()
 
 
@@ -307,14 +353,18 @@ def main():
     for i in range(len(files)):
         name = files[i]
         data = get_data(name)
-        # plot_points(data, 1)
         my_outlier(i, data, name)
+        plot_points(data, i)
         print("--------------")
         time.sleep(1)
+
+    manage_plot()
+    # new_plot()
+
     # plot_mean()
     summary()
     my.print_data_as_json(my_dictionary)
-    my.save_json_data_elegant(path=file_name, data=my_dictionary)
+    # my.save_json_data_elegant(path=file_name, data=my_dictionary)
 
 
 def main2():
