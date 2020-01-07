@@ -89,7 +89,8 @@ def read_from_serial():
                     print('\x1b[6;30;43m' + " Dictionary is empty! " + '\x1b[0m')
                 else:
                     print('\x1b[6;30;42m' + " Saved! " + '\x1b[0m')
-                    directory = my.define_directory(info="")
+                    path_directory = "./test_bis/test_" + str(dt.datetime.strftime(dt.datetime.now(), "%Y_%m_%d"))
+                    directory = my.define_directory(directory=path_directory)
                     path = directory + '/test_' + dt.datetime.now().strftime("%y_%m_%d-%H_%M_%S") + '.json'
                     print(path)
                     my.save_json_data_elegant(path=path, data=data)

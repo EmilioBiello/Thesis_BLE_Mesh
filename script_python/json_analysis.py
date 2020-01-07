@@ -4,10 +4,10 @@ import emilio_function as my
 import re
 import time
 
-relay = 2  # 0,1,2
+relay = 0  # 0,1,2
 path_pc = "./"
 path_media = "/media/emilio/BLE/"
-file_name = "json_file/test_2019_12_24/test_19_12_24-19_24_04.json"
+file_name = "json_file/test_2020_01_07/test_20_01_07-10_24_40.json"
 path = path_pc + file_name
 
 preprocessing_path = file_name[:-5] + "_preprocessing.json"
@@ -142,6 +142,7 @@ def second_analysis(data):
     min_diff_time = ""
     max_diff_time = ""
     match_error = "^[E]$"
+    list_error = list()
     for m_id in list_of_m_id:
         couple = my.get_mex_couple(messages, m_id)  # individuo le coppie di messaggi
 
@@ -229,7 +230,7 @@ def second_analysis(data):
                 print("type_mex: {t_m}, mex_id: {m_id}, ttl: {ttl}, time: [{t}]".format(
                     m_id=messages[couple[i]]['message_id'], t=messages[couple[i]]['time'],
                     t_m=messages[couple[i]]['type_mex'], ttl=messages[couple[i]]['ttl']))
-            error = True
+                error = True
 
     # print("Size: Duplicate message Received: {}".format(len(error_ttl)))
     if error:

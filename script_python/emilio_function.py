@@ -52,11 +52,10 @@ def print_data_as_json(data):
     print(json.dumps(data, default=convert_timestamp, ensure_ascii=False, sort_keys=True))
 
 
-def define_directory(info):
-    path = "./json_file/test_" + str(info) + str(dt.datetime.strftime(dt.datetime.now(), "%Y_%m_%d"))
-    if not os.path.exists(path=path):
-        os.makedirs(path)
-    return path
+def define_directory(directory):
+    if not os.path.exists(path=directory):
+        os.makedirs(directory)
+    return directory
 
 
 def get_path_media_or_PC(path_1):
