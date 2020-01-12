@@ -1,27 +1,23 @@
-/* Mesh Internal Communication Example
+//
+// Created by emilio on 11/01/20.
+//
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
+#ifndef _MESH_BOARD_H_
+#define _MESH_BOARD_H_
 
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-
-#ifndef __MESH_LIGHT_H__
-#define __MESH_LIGHT_H__
-
+#include "driver/gpio.h"
 #include "esp_err.h"
 
 /*******************************************************
  *                Constants
  *******************************************************/
-#define MESH_LIGHT_RED       (0xff)
-#define MESH_LIGHT_GREEN     (0xfe)
-#define MESH_LIGHT_BLUE      (0xfd)
-#define MESH_LIGHT_YELLOW    (0xfc)
-#define MESH_LIGHT_PINK      (0xfb)
-#define MESH_LIGHT_INIT      (0xfa)
-#define MESH_LIGHT_WARNING   (0xf9)
+
+#define LED_WIFI GPIO_NUM_26
+#define LED_BLUETOOTH GPIO_NUM_27
+
+#define BUF_SIZE (128)
+#define ECHO_TEST_TXD (GPIO_NUM_23)
+#define ECHO_TEST_RXD (GPIO_NUM_22)
 
 #define  MESH_TOKEN_ID       (0x0)
 #define  MESH_TOKEN_VALUE    (0xbeef)
@@ -30,7 +26,8 @@
 /*******************************************************
  *                Type Definitions
  *******************************************************/
-
+#define LED_ON 1
+#define LED_OFF 0
 /*******************************************************
  *                Structures
  *******************************************************/
@@ -41,6 +38,13 @@ typedef struct {
     uint16_t token_value;
 } mesh_light_ctl_t;
 
+struct _led_state {
+    uint8_t current;
+    uint8_t previous;
+    uint8_t pin;
+    char *name;
+};
+
 /*******************************************************
  *                Variables Declarations
  *******************************************************/
@@ -49,9 +53,11 @@ typedef struct {
  *                Function Definitions
  *******************************************************/
 esp_err_t mesh_light_init(void);
-esp_err_t mesh_light_set(int color);
 esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len);
 void mesh_connected_indicator(int layer);
 void mesh_disconnected_indicator(void);
+void board_led_operation(uint8_t pin, uint8_t status_led);
 
-#endif /* __MESH_LIGHT_H__ */
+void uart_init(void);
+
+#endif //_MESH_BOARD_H_

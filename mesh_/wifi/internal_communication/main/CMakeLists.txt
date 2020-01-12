@@ -1,4 +1,3 @@
-idf_component_register(SRCS "mesh_light.c"
+idf_component_register(SRCS "mesh_board.c"
                             "mesh_main.c"
-                            "board.c"
                     INCLUDE_DIRS "." "include")
