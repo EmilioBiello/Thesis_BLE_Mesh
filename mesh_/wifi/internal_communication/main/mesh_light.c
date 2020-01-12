@@ -131,7 +131,7 @@ esp_err_t mesh_light_set(int color) {
 }
 
 void mesh_connected_indicator(int layer) {
-    char *my_color;
+    char *my_color = "";
     switch (layer) {
         case 1:
             mesh_light_set(MESH_LIGHT_PINK);
@@ -161,7 +161,7 @@ void mesh_connected_indicator(int layer) {
             mesh_light_set(0);
             my_color = "OFF";
     }
-    ESP_LOGI("LIGHT", "Layer: [%d] --> Light: [%s]\n", layer, my_color);
+    // ESP_LOGI("LIGHT", "Layer: [%d] --> Light: [%s]\n", layer, my_color);
 }
 
 void mesh_disconnected_indicator(void) {
