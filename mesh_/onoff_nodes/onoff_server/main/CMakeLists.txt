@@ -1,6 +1,7 @@
 set(COMPONENT_SRCS "ble_mesh_demo_main.c"
                    "ble_mesh_demo_init.c"
-                   "board.c")
+                   "board.c"
+                   "station_wifi.c")
 
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 

@@ -23,6 +23,7 @@
 
 #include "board.h"
 #include "ble_mesh_demo_init.h"
+#include "station_wifi.h"
 
 #define CID_ESP 0x02E5
 
@@ -219,11 +220,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-/**
- *
- * @param event
- * @param param
- */
+
 static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_event_t event,
                                                esp_ble_mesh_generic_server_cb_param_t *param) {
     printf("----\n");
@@ -351,4 +348,7 @@ void app_main(void) {
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
+
+    /* init wifi */
+    my_wifi_init();
 }

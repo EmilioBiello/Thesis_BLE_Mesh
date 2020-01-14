@@ -1,0 +1,14 @@
+//
+// Created by emilio on 14/01/20.
+//
+
+#ifndef ONOFF_SERVER_STATION_WIFI_H
+#define ONOFF_SERVER_STATION_WIFI_H
+#define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
+#define EXAMPLE_ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
+#define EXAMPLE_ESP_MAXIMUM_RETRY  CONFIG_ESP_MAXIMUM_RETRY
+#define TAG_WIFI "wifi station"
+
+void my_wifi_init(void);
+
+#endif //ONOFF_SERVER_STATION_WIFI_H
