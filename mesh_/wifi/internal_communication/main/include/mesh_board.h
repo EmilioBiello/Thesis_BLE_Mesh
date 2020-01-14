@@ -13,7 +13,7 @@
  *******************************************************/
 
 #define LED_WIFI GPIO_NUM_26
-#define LED_BLUETOOTH GPIO_NUM_27
+#define LED_WIFI_1 GPIO_NUM_27
 
 #define BUF_SIZE (128)
 #define ECHO_TEST_TXD (GPIO_NUM_23)

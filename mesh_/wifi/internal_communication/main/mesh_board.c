@@ -12,7 +12,7 @@
 #include "esp_err.h"
 #include "esp_mesh.h"
 
-#include "mesh_board.h"
+#include "include/mesh_board.h"
 
 #include "driver/uart.h"
 #include "soc/uart_struct.h"
@@ -29,7 +29,7 @@ static bool is_running = true;
 
 extern uint8_t data_tx;
 
-struct _led_state led_array = {LED_OFF, LED_OFF, LED_BLUETOOTH, "ble_mesh"};
+struct _led_state led_array = {LED_OFF, LED_OFF, LED_WIFI_1, "ble_mesh"};
 
 extern void emilio_tx(void);
 
@@ -42,9 +42,9 @@ esp_err_t mesh_light_init(void) {
     }
     s_light_inited = true;
 
-    gpio_pad_select_gpio(LED_BLUETOOTH);
-    gpio_set_direction(LED_BLUETOOTH, GPIO_MODE_OUTPUT);
-    gpio_set_level(LED_BLUETOOTH, LED_OFF);
+    gpio_pad_select_gpio(LED_WIFI_1);
+    gpio_set_direction(LED_WIFI_1, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_WIFI_1, LED_OFF);
 
     gpio_pad_select_gpio(LED_WIFI);
     gpio_set_direction(LED_WIFI, GPIO_MODE_OUTPUT);
@@ -85,10 +85,10 @@ esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len) {
     if (in->cmd == MESH_CONTROL_CMD) {
         if (in->on) {
             printf("Turning on the LED\n");
-            gpio_set_level(LED_WIFI, LED_ON);
+            gpio_set_level(LED_WIFI_1, LED_ON);
         } else {
             printf("Turning off the LED\n");
-            gpio_set_level(LED_WIFI, LED_OFF);
+            gpio_set_level(LED_WIFI_1, LED_OFF);
         }
     }
     return ESP_OK;
@@ -172,37 +172,37 @@ void uart_init(void) {
 /*******************************************************
  *                Function Definitions Semaphore
  *******************************************************/
-SemaphoreHandle_t xSemaphore = NULL;
-
-// Interrupt service routine, called when the button is pressed
-void IRAM_ATTR gpio_isr_handler(void *arg) {
-    // notify the button task
-    xSemaphoreGiveFromISR(xSemaphore, NULL);
-}
-
-void semaphore_task(void *arg) {
-    is_running = true;
-    while (is_running) {
-        if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE) {
-            data_tx++;
-            emilio_tx();
-        }
-    }
-}
-
-void semaphore_init(void) {
-    printf("- %s\n", __func__);
-    //Create the binary semaphore
-    xSemaphore = xSemaphoreCreateBinary();
-    // Enable interrupt on falling (Fronte di discesa, ovvero quando si passa 1->0) edge for button pin
-    gpio_set_intr_type(2, GPIO_INTR_NEGEDGE);
-    // start the task that will handle the button
-    xTaskCreate(semaphore_task, "semaphore_task", 3072, NULL, 5, NULL);
-
-    // install ISR service with default configuration
-    gpio_install_isr_service(0);
-
-    //attach the interrupt service routine
-    gpio_isr_handler_add(2, gpio_isr_handler, NULL);
-    // alla pressione del tasto viene eseguita la funzione  button_isr_handler(void* arg)
-}
+//SemaphoreHandle_t xSemaphore = NULL;
+//
+//// Interrupt service routine, called when the button is pressed
+//void IRAM_ATTR gpio_isr_handler(void *arg) {
+//    // notify the button task
+//    xSemaphoreGiveFromISR(xSemaphore, NULL);
+//}
+//
+//void semaphore_task(void *arg) {
+//    is_running = true;
+//    while (is_running) {
+//        if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE) {
+//            data_tx++;
+//            emilio_tx();
+//        }
+//    }
+//}
+//
+//void semaphore_init(void) {
+//    printf("- %s\n", __func__);
+//    //Create the binary semaphore
+//    xSemaphore = xSemaphoreCreateBinary();
+//    // Enable interrupt on falling (Fronte di discesa, ovvero quando si passa 1->0) edge for button pin
+//    gpio_set_intr_type(2, GPIO_INTR_NEGEDGE);
+//    // start the task that will handle the button
+//    xTaskCreate(semaphore_task, "semaphore_task", 3072, NULL, 5, NULL);
+//
+//    // install ISR service with default configuration
+//    gpio_install_isr_service(0);
+//
+//    //attach the interrupt service routine
+//    gpio_isr_handler_add(2, gpio_isr_handler, NULL);
+//    // alla pressione del tasto viene eseguita la funzione  button_isr_handler(void* arg)
+//}
