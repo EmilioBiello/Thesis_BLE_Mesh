@@ -7,6 +7,7 @@
 
 #include "driver/gpio.h"
 #include "esp_err.h"
+#include "esp_ble_mesh_defs.h"
 
 /*******************************************************
  *                Constants
@@ -14,7 +15,6 @@
 
 #define LED_WIFI GPIO_NUM_25
 #define LED_BLE GPIO_NUM_26
-#define LED_BLE_1 GPIO_NUM_27
 
 #define BUF_SIZE (128)
 #define ECHO_TEST_TXD (GPIO_NUM_23)
@@ -54,11 +54,23 @@ struct _led_state {
  *                Function Definitions
  *******************************************************/
 esp_err_t mesh_light_init(void);
+
 esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len);
+
 void mesh_connected_indicator(int layer);
+
 void mesh_disconnected_indicator(void);
+
 void board_led_operation(uint8_t pin, uint8_t status_led);
 
 void uart_init(void);
+
+char **str_split(char *a_str, char a_delim);
+
+uint8_t count_tokens(char *a_str, char a_delim);
+
+void decoding_string(char tokens0, char *token1, char *token2, char *token3);
+
+void command_received(char **tokens, int count);
 
 #endif //_MESH_BOARD_H_
