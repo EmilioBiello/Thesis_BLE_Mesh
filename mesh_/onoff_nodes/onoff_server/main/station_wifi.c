@@ -46,8 +46,10 @@ void wifi_init_sta()
 {
     s_wifi_event_group = xEventGroupCreate();
 
+    // initialize the tcp stack
     tcpip_adapter_init();
 
+    // initialize the wifi event handler
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();

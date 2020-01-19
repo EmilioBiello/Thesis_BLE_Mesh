@@ -43,8 +43,6 @@ static bool is_mesh_connected = false;
 static mesh_addr_t mesh_parent_addr;
 static int mesh_layer = -1;
 
-uint8_t data_tx = 0;
-
 mesh_light_ctl_t light_on = {
         .cmd = MESH_CONTROL_CMD,
         .on = 1,
@@ -60,8 +58,10 @@ mesh_light_ctl_t light_off = {
 };
 
 /*******************************************************
- *                Variable Definitions WIFI
+ *                Variable Definitions BLE
  *******************************************************/
+uint8_t status_led = 1;
+
 extern struct _led_state led_state[2];
 
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
@@ -85,25 +85,25 @@ static esp_ble_mesh_cfg_srv_t config_server = {
         .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_0, 2 + 3, ROLE_NODE);
-static esp_ble_mesh_gen_onoff_srv_t onoff_server_0 = {
+ESP_BLE_MESH_MODEL_PUB_DEFINE(level_pub_0, 2 + 3, ROLE_NODE);
+static esp_ble_mesh_gen_onoff_srv_t level_server_0 = {
         .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
         .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
 };
 
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_1, 2 + 3, ROLE_NODE);
-static esp_ble_mesh_gen_onoff_srv_t onoff_server_1 = {
-        .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
-        .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
+ESP_BLE_MESH_MODEL_PUB_DEFINE(level_pub_1, 2 + 3, ROLE_NODE);
+static esp_ble_mesh_gen_onoff_srv_t level_server_1 = {
+        .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
+        .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
 };
 
 static esp_ble_mesh_model_t root_models[] = {
         ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
-        ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_0, &onoff_server_0),
+        ESP_BLE_MESH_MODEL_GEN_LEVEL_SRV(&level_pub_0, &level_server_0),
 };
 
 static esp_ble_mesh_model_t extend_model_0[] = {
-        ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_1, &onoff_server_1),
+        ESP_BLE_MESH_MODEL_GEN_LEVEL_SRV(&level_pub_1, &level_server_1),
 };
 
 
@@ -218,60 +218,6 @@ void esp_mesh_p2p_tx_main(void *arg) {
     vTaskDelete(NULL);
 }
 
-//void emilio_tx(void) {
-//    printf("- %s\n", __func__);
-//    esp_err_t err;
-//    mesh_addr_t route_table[CONFIG_MESH_ROUTE_TABLE_SIZE];
-//    int route_table_size = 0;
-//    int i = 0;
-//    mesh_data_t data;
-//    data.data = tx_buf;
-//    data.size = sizeof(tx_buf);
-//    data.proto = MESH_PROTO_BIN;
-//    data.tos = MESH_TOS_P2P;
-//
-//    /* Get Routing Table*/
-//    esp_mesh_get_routing_table((mesh_addr_t *) &route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6, &route_table_size);
-//
-//    tx_buf[25] = (data_tx >> 24) & 0xff;
-//    tx_buf[24] = (data_tx >> 16) & 0xff;
-//    tx_buf[23] = (data_tx >> 8) & 0xff;
-//    tx_buf[22] = (data_tx >> 0) & 0xff;
-//
-//    if (data_tx % 2) {
-//        memcpy(tx_buf, (uint8_t *) &light_on, sizeof(light_on));
-//    } else {
-//        memcpy(tx_buf, (uint8_t *) &light_off, sizeof(light_off));
-//    }
-//
-//    ESP_LOGI(TAG_WIFI, "[L:%d][table_size:%d][parent: "
-//            MACSTR
-//            "][me: "
-//            MACSTR
-//            "]\n", mesh_layer, esp_mesh_get_routing_table_size(), MAC2STR(mesh_parent_addr.addr),
-//             MAC2STR(route_table[0].addr));
-//    /* SEND DATA */
-//    for (i = 0; i < route_table_size; i++) {
-//        err = esp_mesh_send(&route_table[i], &data, MESH_DATA_P2P, NULL, 0);
-//        if (err) {
-//            ESP_LOGE(TAG_WIFI,
-//                     "[ROOT-2-UNICAST:%d][L:%d]parent:"
-//                             MACSTR
-//                             " to "
-//                             MACSTR
-//                             ", heap:%d[err:0x%x, proto:%d, tos:%d]",
-//                     data_tx, mesh_layer, MAC2STR(mesh_parent_addr.addr),
-//                     MAC2STR(route_table[i].addr), esp_get_free_heap_size(),
-//                     err, data.proto, data.tos);
-//        } else {
-//            ESP_LOGI("Mex_Sent", "[#TX:%d][to: "
-//                    MACSTR
-//                    "]\n", data_tx, MAC2STR(route_table[i].addr));
-//        }
-//        vTaskDelay(200 / portTICK_PERIOD_MS);
-//    }
-//}
-
 void esp_mesh_p2p_rx_main(void *arg) {
     esp_err_t err;
     mesh_addr_t from;
@@ -317,12 +263,6 @@ esp_err_t esp_mesh_comm_p2p_start(void) {
     }
     return ESP_OK;
 }
-
-//esp_err_t esp_mesh_comm_p2p_start_3(void) {
-//    uart_init();
-//    xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
-//    return ESP_OK;
-//}
 
 void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     mesh_addr_t id = {{0},};
@@ -601,68 +541,70 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
     my_wifi_init();
 }
 
-static void example_change_led_state(esp_ble_mesh_model_t *model,
-                                     esp_ble_mesh_msg_ctx_t *ctx, uint8_t onoff) {
+static void example_change_led_state(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx) {
     uint16_t primary_addr = esp_ble_mesh_get_primary_element_address();
     uint8_t elem_count = esp_ble_mesh_get_element_count();
     struct _led_state *led = NULL;
     uint8_t i;
-    printf("%s - [src: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl,
-           onoff);
+    //printf("%s - [src: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl, status_led);
 
     if (ESP_BLE_MESH_ADDR_IS_UNICAST(ctx->recv_dst)) {
         for (i = 0; i < elem_count; i++) {
             if (ctx->recv_dst == (primary_addr + i)) {
                 led = &led_state[i];
-                board_led_operation(led->pin, onoff);
-                printf("LED %s [%d] status: %d\n", led->name, led->pin, onoff);
+                board_led_operation(led->pin, status_led);
             }
         }
     } else if (ESP_BLE_MESH_ADDR_IS_GROUP(ctx->recv_dst)) {
         if (esp_ble_mesh_is_model_subscribed_to_group(model, ctx->recv_dst)) {
             led = &led_state[model->element->element_addr - primary_addr];
-            board_led_operation(led->pin, onoff);
-            printf("LED %s [%d] status: %d\n", led->name, led->pin, onoff);
+            board_led_operation(led->pin, status_led);
         }
     } else if (ctx->recv_dst == 0xFFFF) {
         led = &led_state[model->element->element_addr - primary_addr];
-        board_led_operation(led->pin, onoff);
-        printf("LED %s [%d] status: %d\n", led->name, led->pin, onoff);
+        board_led_operation(led->pin, status_led);
     }
+
+    status_led = !status_led;
 }
 
-static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
-                                         esp_ble_mesh_msg_ctx_t *ctx,
-                                         esp_ble_mesh_server_recv_gen_onoff_set_t *set) {
-    esp_ble_mesh_gen_onoff_srv_t *srv = model->user_data;
+static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx,
+                                         esp_ble_mesh_server_recv_gen_level_set_t *set) {
+    esp_ble_mesh_gen_level_srv_t *srv = model->user_data;
 
     switch (ctx->recv_op) {
-        case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET:
-            ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET");
-            esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
-                                               sizeof(srv->state.onoff), &srv->state.onoff);
+        case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET:
+            esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
+                                               sizeof(srv->state.level), (uint8_t *) &srv->state.level);
 
             break;
-        case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET:
-        case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK:
-            ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET or ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK");
-            if (set->op_en == false) {
-                srv->state.onoff = set->onoff;
-            }
+        case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET:
+        case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK:
+//            if (set->op_en == false) {
+//                srv->state.level = set->level;
+//            } else {
+//                /* TODO: Delay and state transition */
+//                srv->state.level = set->level;
+//            }
 
-            if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
-                uint8_t m_id = set->tid; // presente solo nei mex di tipo SET
-                ESP_LOGW(TAG_BLE, "[Send Status message] add: %d stauts: %d , m_id: %d", ctx->addr,
-                         srv->state.onoff, m_id);
+            srv->state.level = set->level;
+//            if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
+//                esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
+//                                                   sizeof(srv->state.level), (uint8_t *) &srv->state.level);
+//                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d --> ttl: %d - %d", srv->state.level, ctx->recv_ttl,
+//                         ctx->send_ttl);
+//            }
 
-                esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS,
-                                                   sizeof(m_id), &m_id);
-            }
-            if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
-                esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(srv->state.onoff),
-                                           &srv->state.onoff, ROLE_NODE);
-            }
-            example_change_led_state(model, ctx, srv->state.onoff);
+            ctx->send_ttl = 3;
+            esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS,
+                                               sizeof(srv->state.level), (uint8_t *) &srv->state.level);
+            printf("PC: level: %d, ttl: %d\n", srv->state.level, ctx->recv_ttl);
+
+//            if (model->pub->publish_addr != ESP_BLE_MESH_ADDR_UNASSIGNED) {
+//                esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
+//                                           (uint8_t *) &srv->state.level, ROLE_NODE);
+//            }
+            example_change_led_state(model, ctx);
             break;
         default:
             printf("%s --> DEFAULT STATE", __func__);
@@ -715,31 +657,30 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
     switch (event) {
         case ESP_BLE_MESH_GENERIC_SERVER_STATE_CHANGE_EVT:
             // Messaggio Ricevuto da tutti i nodi
-            ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_GENERIC_SERVER_STATE_CHANGE_EVT");
-            if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET ||
-                param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK) {
-                ESP_LOGI(TAG_BLE, "onoff 0x%02x", param->value.state_change.onoff_set.onoff);
-                example_change_led_state(param->model, &param->ctx, param->value.state_change.onoff_set.onoff);
+            if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET ||
+                param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
+                example_change_led_state(param->model, &param->ctx);
+                ESP_LOGI(TAG_BLE, "STATE_CHANGE_EVT --> Level %d", param->value.state_change.level_set.level);
             }
             break;
         case ESP_BLE_MESH_GENERIC_SERVER_RECV_GET_MSG_EVT:
-            ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_GENERIC_SERVER_RECV_GET_MSG_EVT");
-            if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET) {
-                example_handle_gen_onoff_msg(param->model, &param->ctx, NULL);
+            if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET) {
+                example_handle_gen_level_msg(param->model, &param->ctx, NULL);
             }
+            ESP_LOGI(TAG_BLE, "GET_MSG_EVT");
             break;
         case ESP_BLE_MESH_GENERIC_SERVER_RECV_SET_MSG_EVT:
-            // Messaggio Ricevuto all'indirizzo specifico
-            ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_GENERIC_SERVER_RECV_SET_MSG_EVT");
-            if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET ||
-                param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK) {
-                ESP_LOGI(TAG_BLE, "onoff 0x%02x, tid 0x%02x", param->value.set.onoff.onoff, param->value.set.onoff.tid);
-                if (param->value.set.onoff.op_en) {
-                    ESP_LOGI(TAG_BLE, "trans_time 0x%02x, delay 0x%02x",
-                             param->value.set.onoff.trans_time, param->value.set.onoff.delay);
+            // MEssaggio Ricevuto all'indirizzo specifico
+            if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET ||
+                param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
+                example_handle_gen_level_msg(param->model, &param->ctx, &param->value.set.level);
+                // ESP_LOGI(TAG_BLE, "LEVEL %d, tid %d", param->value.set.level.level, param->value.set.level.tid);
+                if (param->value.set.level.op_en) {
+                    ESP_LOGI(TAG_BLE, "trans_time 0x%02x, delay 0x%02x", param->value.set.level.trans_time,
+                             param->value.set.level.delay);
                 }
-                example_handle_gen_onoff_msg(param->model, &param->ctx, &param->value.set.onoff);
             }
+            ESP_LOGI(TAG_BLE, "SET_MSG_EVT");
             break;
         default:
             ESP_LOGE(TAG_BLE, "Unknown Generic Server event 0x%02x", event);

@@ -18,13 +18,17 @@
 #include "driver/uart.h"
 #include "soc/uart_struct.h"
 
+#include "include/my_queue.h"
+
 #define TAG "uart_events"
 
-extern void send_message(uint16_t addr, uint32_t opcode, int16_t level, bool ack);
+extern void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel);
+
+extern void send_mex_wifi(int16_t data_tx, int index);
 
 struct _led_state led_array = {LED_OFF, LED_OFF, LED_BLE, "ble_mesh"};
 
-extern void emilio_tx(int16_t data_tx);
+extern void send_mex_wifi_to_all(int16_t data_tx);
 
 /*******************************************************
  *                Variable Definitions
@@ -48,6 +52,13 @@ static bool s_light_inited = false;
 static bool is_running = true;
 
 char *command;
+
+bool running_rule = false;
+
+struct Queue *q;
+
+int sent_wifi;
+int sent_ble;
 
 /*******************************************************
  *                Function Definitions Light
@@ -141,6 +152,75 @@ esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len) {
 /*******************************************************
  *                Function Definitions Command
  *******************************************************/
+void update_queue(int key) {
+    if (running_rule) {
+        int value = delete_node(q, key);
+        if (value > 0) {
+            printf("Value removed: %d\n", key);
+            sent_ble += 1;
+        } else {
+            ESP_LOGE("DOUBLE", "Value not present in the list: [%d]\n", key);
+        }
+    }
+}
+
+void re_send_mex() {
+    if (running_rule) {
+        int value = deQueue(q);
+        if (value > 0) {
+            send_mex_wifi(value, 1);
+            ESP_LOGW("WIFI", "Send: %d\n", value);
+            sent_wifi += 1;
+        }
+    }
+}
+
+void re_send_last_mex(TickType_t xDelay) {
+    printQueue(q);
+    while (q->front != NULL) {
+        re_send_mex();
+        vTaskDelay(xDelay); // delay is milliseconds
+    }
+    running_rule = false;
+    ESP_LOGE("END", "Sent BLE: %d --- Sent wifi: %d TOTALE: %d", sent_ble, sent_wifi, (sent_ble + sent_wifi));
+}
+
+void execute_rule() {
+    int16_t level = 1;
+    char level_c[7];
+
+    q = create_queue();
+    running_rule = true;
+    sent_wifi = 0;
+    sent_ble = 0;
+    int check_buffer = 80; // (1000/delay) * n seconds (latency mean about relay * and delay *)
+    int front = 0;
+
+    const TickType_t xDelay = m1.delay_s / portTICK_PERIOD_MS;
+    printf("Start after first delay: %d --> delay loop: %d\n", m1.delay_s, xDelay);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+    for (int i = 0; i < m1.n_mex_s; ++i) {
+        send_message_BLE(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level, m1.ack_s);
+        sprintf(level_c, "%d", level);
+
+        // TODO [Emilio] commentata scrittua su seriale
+        // create_message_rapid("S", (char *) level_c, "3");
+        ESP_LOGI("RULE", "BLE_send --> %d\n", level);
+        enQueue(q, level);
+        level += 1;
+        vTaskDelay(xDelay); // delay is milliseconds
+        if (i > check_buffer) {
+            front = get_front_mex(q);
+            if ((level - check_buffer) >= front)
+                re_send_mex();
+        }
+    }
+    ESP_LOGE("RULE", "End send");
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+    re_send_last_mex(xDelay);
+}
+
 void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
     char **t1_char = str_split(token1, ':');
     char **t2_char = str_split(token2, ':');
@@ -174,21 +254,29 @@ void command_received(char **tokens, int count) {
         case '#': {
             char **t1_char = str_split(tokens[1], ':');
             uint16_t level = strtoul((const char *) t1_char[1], NULL, 10);
-            emilio_tx(level);
+            send_mex_wifi_to_all(level);
             printf("WIFI send mex\n");
         }
             break;
         case '@':
             if (count == 2) {
                 decoding_string('@', tokens[1], tokens[2], "unack");
-                send_message(m2.addr_s, m2.opcode_s, m2.level_s, false);
+                send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, false);
                 ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
             } else if (count == 3) {
                 decoding_string('@', tokens[1], tokens[2], tokens[3]);
-                send_message(m2.addr_s, m2.opcode_s, m2.level_s, m2.ack_s);
+                send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, m2.ack_s);
                 ESP_LOGI("SEND_MESSAGE", "SET");
             }
             printf("BLE send mex\n");
+            break;
+        case '&':
+            decoding_string('&', tokens[1], tokens[2], tokens[3]);
+            printf("n_mex: %hu\n", m1.n_mex_s);
+            printf("addr: %hhu\n", m1.addr_s);
+            printf("delay: %u\n", m1.delay_s);
+            execute_rule();
+            printf("Rule\n");
             break;
         default:
             printf("Comando Errato\n");

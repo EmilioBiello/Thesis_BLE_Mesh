@@ -8,6 +8,7 @@
 #include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_ble_mesh_defs.h"
+#include "include/my_queue.h"
 
 /*******************************************************
  *                Constants
@@ -72,5 +73,7 @@ uint8_t count_tokens(char *a_str, char a_delim);
 void decoding_string(char tokens0, char *token1, char *token2, char *token3);
 
 void command_received(char **tokens, int count);
+
+void update_queue(int key);
 
 #endif //_MESH_BOARD_H_

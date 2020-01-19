@@ -169,7 +169,6 @@ void execute_rule() {
         send_message(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level, m1.ack_s);
         sprintf(level_c, "%d", level);
 
-
         create_message_rapid("S", (char *) level_c, "3");
         level += 1;
         vTaskDelay(xDelay); // delay is milliseconds
