@@ -32,6 +32,9 @@
 #define TX_SIZE          (1460)
 #define CID_ESP 0x02E5
 
+uint8_t status_led_ble = 1;
+uint8_t status_led_wifi = 1;
+
 /*******************************************************
  *                Variable Definitions WIFI
  *******************************************************/
@@ -60,8 +63,6 @@ mesh_light_ctl_t light_off = {
 /*******************************************************
  *                Variable Definitions BLE
  *******************************************************/
-uint8_t status_led = 1;
-
 extern struct _led_state led_state[2];
 
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
@@ -218,6 +219,21 @@ void esp_mesh_p2p_tx_main(void *arg) {
     vTaskDelete(NULL);
 }
 
+void send_data(int value, mesh_addr_t from, mesh_data_t data) {
+    esp_err_t err;
+    err = esp_mesh_send(&from, &data, MESH_DATA_P2P, NULL, 0);
+    if (err) {
+        ESP_LOGE(TAG_WIFI, "[ROOT-2-UNICAST][%d][L:%d] from: "
+                MACSTR
+                ", heap:%d[err:0x%x, proto:%d, tos:%d]",
+                 value, mesh_layer, MAC2STR(from.addr), esp_get_free_heap_size(), err, data.proto, data.tos);
+    } else {
+        ESP_LOGW("SEND_MEX", "[%d] To: "
+                MACSTR
+                " ", value, MAC2STR(from.addr));
+    }
+}
+
 void esp_mesh_p2p_rx_main(void *arg) {
     esp_err_t err;
     mesh_addr_t from;
@@ -239,17 +255,23 @@ void esp_mesh_p2p_rx_main(void *arg) {
         if (data.size >= sizeof(value)) {
             value = (data.data[25] << 24) | (data.data[24] << 16) | (data.data[23] << 8) | data.data[22];
         }
-        /* process light control */
-        mesh_light_process(&from, data.data, data.size);
 
-        ESP_LOGW(TAG_WIFI,
-                 "[#RX:%d][L:%d] parent:"
-                         MACSTR
-                         ", receive from "
-                         MACSTR
-                         ", size:%d, heap:%d, flag:%d[err:0x%x, proto:%d, tos:%d]",
-                 value, mesh_layer, MAC2STR(mesh_parent_addr.addr), MAC2STR(from.addr), data.size,
-                 esp_get_free_heap_size(), flag, err, data.proto, data.tos);
+        /* ACK */
+        send_data(value, from, data);
+
+        /* process light control */
+        //mesh_light_process(&from, data.data, data.size);
+        board_led_operation_wifi(LED_WIFI, status_led_wifi);
+
+        status_led_wifi = !status_led_wifi;
+//        ESP_LOGW(TAG_WIFI,
+//                 "[#RX:%d][L:%d] parent:"
+//                         MACSTR
+//                         ", receive from "
+//                         MACSTR
+//                         ", size:%d, heap:%d, flag:%d[err:0x%x, proto:%d, tos:%d]",
+//                 value, mesh_layer, MAC2STR(mesh_parent_addr.addr), MAC2STR(from.addr), data.size,
+//                 esp_get_free_heap_size(), flag, err, data.proto, data.tos);
     }
     vTaskDelete(NULL);
 }
@@ -258,7 +280,7 @@ esp_err_t esp_mesh_comm_p2p_start(void) {
     static bool is_comm_p2p_started = false;
     if (!is_comm_p2p_started) {
         is_comm_p2p_started = true;
-        xTaskCreate(esp_mesh_p2p_tx_main, "MPTX", 3072, NULL, 5, NULL);
+        // xTaskCreate(esp_mesh_p2p_tx_main, "MPTX", 3072, NULL, 5, NULL);
         xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
     }
     return ESP_OK;
@@ -546,26 +568,26 @@ static void example_change_led_state(esp_ble_mesh_model_t *model, esp_ble_mesh_m
     uint8_t elem_count = esp_ble_mesh_get_element_count();
     struct _led_state *led = NULL;
     uint8_t i;
-    //printf("%s - [src: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl, status_led);
+    //printf("%s - [src: %hu dst: %hu ttl: %hhu] --> status: %hhu\n", __func__, ctx->addr, ctx->recv_dst, ctx->recv_ttl, status_led_ble);
 
     if (ESP_BLE_MESH_ADDR_IS_UNICAST(ctx->recv_dst)) {
         for (i = 0; i < elem_count; i++) {
             if (ctx->recv_dst == (primary_addr + i)) {
                 led = &led_state[i];
-                board_led_operation(led->pin, status_led);
+                board_led_operation(led->pin, status_led_ble);
             }
         }
     } else if (ESP_BLE_MESH_ADDR_IS_GROUP(ctx->recv_dst)) {
         if (esp_ble_mesh_is_model_subscribed_to_group(model, ctx->recv_dst)) {
             led = &led_state[model->element->element_addr - primary_addr];
-            board_led_operation(led->pin, status_led);
+            board_led_operation(led->pin, status_led_ble);
         }
     } else if (ctx->recv_dst == 0xFFFF) {
         led = &led_state[model->element->element_addr - primary_addr];
-        board_led_operation(led->pin, status_led);
+        board_led_operation(led->pin, status_led_ble);
     }
 
-    status_led = !status_led;
+    status_led_ble = !status_led_ble;
 }
 
 static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx,
@@ -580,6 +602,12 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
             break;
         case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET:
         case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK:
+//            if (set->op_en == false) {
+//                srv->state.level = set->level;
+//            } else {
+//                /* TODO: Delay and state transition */
+//                srv->state.level = set->level;
+//            }
 
             srv->state.level = set->level;
 //            if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {

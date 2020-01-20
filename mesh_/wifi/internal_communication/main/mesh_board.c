@@ -51,6 +51,10 @@ void board_led_operation(uint8_t pin, uint8_t status_led) {
     ESP_LOGE(TAG, "LED is not found!");
 }
 
+void board_led_operation_wifi(uint8_t pin, uint8_t status_led) {
+    gpio_set_level(pin, status_led);
+}
+
 esp_err_t mesh_light_init(void) {
     if (s_light_inited == true) {
         return ESP_OK;

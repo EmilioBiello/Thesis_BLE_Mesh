@@ -50,9 +50,15 @@ struct _led_state {
  *                Function Definitions
  *******************************************************/
 esp_err_t mesh_light_init(void);
+
 esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len);
+
 void mesh_connected_indicator(int layer);
+
 void mesh_disconnected_indicator(void);
+
 void board_led_operation(uint8_t pin, uint8_t status_led);
+
+void board_led_operation_wifi(uint8_t pin, uint8_t status_led);
 
 #endif //_MESH_BOARD_H_
