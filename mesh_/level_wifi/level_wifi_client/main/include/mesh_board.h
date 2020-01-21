@@ -74,7 +74,7 @@ char **str_split(char *a_str, char a_delim);
 
 uint8_t count_tokens(char *a_str, char a_delim);
 
-void decoding_string(char tokens0, char *token1, char *token2, char *token3);
+void decoding_string(char tokens0, char *token1, char *token2, char *token3, char *token4);
 
 void command_received(char **tokens, int count);
 

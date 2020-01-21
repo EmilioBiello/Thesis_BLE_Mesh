@@ -24,7 +24,9 @@
 
 extern void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel);
 
-extern void send_mex_wifi(int16_t data_tx, int index);
+extern void send_mex_wifi(int16_t data_tx);
+
+extern void define_mesh_address(int index);
 
 struct _led_state led_array = {LED_OFF, LED_OFF, LED_BLE, "ble_mesh"};
 
@@ -231,7 +233,7 @@ void re_send_mex() {
     if (front_value > 0) {
         if ((level_sent - front_value) > (int) delay_buffer) {
             int value = deQueue(q_ble);
-            send_mex_wifi(value, 1);
+            send_mex_wifi(value);
         }
     }
 }
@@ -248,7 +250,7 @@ void clear_queue() {
     int i = empty_queue(q_ble);
     ESP_LOGE("END", "Element in Queue BLE: %d", i);
     i = empty_queue(q_wifi);
-    ESP_LOGE("END", "Element in Queue BLE: %d", i);
+    ESP_LOGE("END", "Element in Queue WIFI: %d", i);
 
     reset_variable();
     gpio_set_level(LED_BLE, LED_ON);
@@ -300,10 +302,11 @@ void execute_rule() {
     clear_queue();
 }
 
-void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
+void decoding_string(char tokens0, char *token1, char *token2, char *token3, char *token4) {
     char **t1_char = str_split(token1, ':');
     char **t2_char = str_split(token2, ':');
     char **t3_char = str_split(token3, ':');
+    char **t4_char = str_split(token4, ':');
 
     if (tokens0 == '@') {
         m2.addr_s = strtoul((const char *) t1_char[1], NULL, 16);
@@ -319,12 +322,14 @@ void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
         m1.n_mex_s = strtoul((const char *) t1_char[1], NULL, 10);
         m1.addr_s = strtoul((const char *) t2_char[1], NULL, 16);
         m1.delay_s = strtoul((const char *) t3_char[1], NULL, 10);
+        define_mesh_address((int) strtoul((const char *) t4_char[1], NULL, 10));
         m1.ack_s = 0;
     }
 
     free(t1_char);
     free(t2_char);
     free(t3_char);
+    free(t4_char);
 }
 
 void command_received(char **tokens, int count) {
@@ -339,18 +344,18 @@ void command_received(char **tokens, int count) {
             break;
         case '@':
             if (count == 2) {
-                decoding_string('@', tokens[1], tokens[2], "unack");
+                decoding_string('@', tokens[1], tokens[2], "unack", "*");
                 send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, false);
                 ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
             } else if (count == 3) {
-                decoding_string('@', tokens[1], tokens[2], tokens[3]);
+                decoding_string('@', tokens[1], tokens[2], tokens[3], "*");
                 send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, m2.ack_s);
                 ESP_LOGI("SEND_MESSAGE", "SET");
             }
             printf("BLE send mex\n");
             break;
         case '&':
-            decoding_string('&', tokens[1], tokens[2], tokens[3]);
+            decoding_string('&', tokens[1], tokens[2], tokens[3], tokens[4]);
             printf("n_mex: %hu\n", m1.n_mex_s);
             printf("addr: %hhu\n", m1.addr_s);
             printf("delay: %u\n", m1.delay_s);

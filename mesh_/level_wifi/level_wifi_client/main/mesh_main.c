@@ -58,6 +58,9 @@ mesh_light_ctl_t light_off = {
         .token_id = MESH_TOKEN_ID,
         .token_value = MESH_TOKEN_VALUE,
 };
+mesh_addr_t my_route_table[CONFIG_MESH_ROUTE_TABLE_SIZE];
+int my_route_table_size = 0;
+int index_wifi = 0;
 
 /*******************************************************
  *                Variable Definitions BLE
@@ -254,17 +257,14 @@ void send_mex_wifi_to_all(int16_t data_tx) {
         } else {
             ESP_LOGI("Mex_Sent_WIFI", "[#TX:%d][to: "
                     MACSTR
-                    "]\n", data_tx, MAC2STR(route_table[i].addr));
+                    "] [index: %d]\n", data_tx, MAC2STR(route_table[i].addr), i);
         }
         vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 }
 
-void send_mex_wifi(int16_t data_tx, int index) {
+void send_mex_wifi(int16_t data_tx) {
     esp_err_t err;
-    mesh_addr_t route_table[CONFIG_MESH_ROUTE_TABLE_SIZE];
-    int route_table_size = 0;
-    int i = 0;
     mesh_data_t data;
     data.data = tx_buf;
     data.size = sizeof(tx_buf);
@@ -272,7 +272,7 @@ void send_mex_wifi(int16_t data_tx, int index) {
     data.tos = MESH_TOS_P2P;
 
     /* Get Routing Table*/
-    esp_mesh_get_routing_table((mesh_addr_t *) &route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6, &route_table_size);
+//    esp_mesh_get_routing_table((mesh_addr_t *) &route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6, &route_table_size);
 
     tx_buf[25] = (data_tx >> 24) & 0xff;
     tx_buf[24] = (data_tx >> 16) & 0xff;
@@ -293,26 +293,20 @@ void send_mex_wifi(int16_t data_tx, int index) {
 //             MAC2STR(route_table[0].addr));
 
     /* SEND DATA */
-    if (index >= esp_mesh_get_routing_table_size()) {
-        ESP_LOGE(TAG_WIFI,
-                 "Error index, it's bigger than routing_table_size [%d - %d]. Index must be smaller than table_size;",
-                 index, esp_mesh_get_routing_table_size());
-    }
-
-    err = esp_mesh_send(&route_table[index], &data, MESH_DATA_P2P, NULL, 0);
+    err = esp_mesh_send(&my_route_table[index_wifi], &data, MESH_DATA_P2P, NULL, 0);
     char level[7];
     sprintf(level, "%d", data_tx);
     if (err) {
         create_message_rapid("W", level, "*");
-        ESP_LOGE(TAG_WIFI,
-                 "[ROOT-2-UNICAST:%d][L:%d]parent:"
-                         MACSTR
-                         " to "
-                         MACSTR
-                         ", heap:%d[err:0x%x, proto:%d, tos:%d]",
-                 data_tx, mesh_layer, MAC2STR(mesh_parent_addr.addr),
-                 MAC2STR(route_table[i].addr), esp_get_free_heap_size(),
-                 err, data.proto, data.tos);
+//        ESP_LOGE(TAG_WIFI,
+//                 "[ROOT-2-UNICAST:%d][L:%d]parent:"
+//                         MACSTR
+//                         " to "
+//                         MACSTR
+//                         ", heap:%d[err:0x%x, proto:%d, tos:%d]",
+//                 data_tx, mesh_layer, MAC2STR(mesh_parent_addr.addr),
+//                 MAC2STR(my_route_table[index].addr), esp_get_free_heap_size(),
+//                 err, data.proto, data.tos);
     } else {
         create_message_rapid("I", level, "*");
         queue_operation('a', 'w', data_tx);
@@ -348,6 +342,10 @@ void esp_mesh_p2p_rx_main(void *arg) {
         queue_operation('d', 'w', value);
     }
     vTaskDelete(NULL);
+}
+
+void define_mesh_address(int index) {
+    index_wifi = index;
 }
 
 //esp_err_t esp_mesh_comm_p2p_start(void) {
@@ -393,6 +391,10 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
                     "",
                      child_connected->aid,
                      MAC2STR(child_connected->mac));
+            /* Get Routing Table*/
+            esp_mesh_get_routing_table((mesh_addr_t *) &my_route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6,
+                                       &my_route_table_size);
+
         }
             break;
         case MESH_EVENT_CHILD_DISCONNECTED: {
@@ -402,6 +404,10 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
                     "",
                      child_disconnected->aid,
                      MAC2STR(child_disconnected->mac));
+            /* Get Routing Table*/
+            esp_mesh_get_routing_table((mesh_addr_t *) &my_route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6,
+                                       &my_route_table_size);
+
         }
             break;
         case MESH_EVENT_ROUTING_TABLE_ADD: {
@@ -409,6 +415,10 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
             ESP_LOGW(TAG_WIFI, "<MESH_EVENT_ROUTING_TABLE_ADD>add %d, new:%d",
                      routing_table->rt_size_change,
                      routing_table->rt_size_new);
+            /* Get Routing Table*/
+            esp_mesh_get_routing_table((mesh_addr_t *) &my_route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6,
+                                       &my_route_table_size);
+
         }
             break;
         case MESH_EVENT_ROUTING_TABLE_REMOVE: {
@@ -416,6 +426,10 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
             ESP_LOGW(TAG_WIFI, "<MESH_EVENT_ROUTING_TABLE_REMOVE>remove %d, new:%d",
                      routing_table->rt_size_change,
                      routing_table->rt_size_new);
+            /* Get Routing Table*/
+            esp_mesh_get_routing_table((mesh_addr_t *) &my_route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6,
+                                       &my_route_table_size);
+
         }
             break;
         case MESH_EVENT_NO_PARENT_FOUND: {
@@ -732,7 +746,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 sprintf(info_level, "%d", my_info_level);
                 // TODO [Emilio] commentata scrittua su seriale
                 create_message_rapid("E", info_level, "0");
-                send_mex_wifi(my_info_level, 1);
+                send_mex_wifi(my_info_level);
             }
             //ESP_LOGI(TAG_BLE, "--- SET_STATE_EVT 0x%x", param->params->opcode);
             break;
@@ -753,7 +767,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             //ESP_LOGI(TAG_BLE, "--- ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT");
             if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET) {
                 /* If failed to get the response of Generic Level Set, resend Generic Level Set  */
-                send_mex_wifi(my_info_level, 1);
+                send_mex_wifi(my_info_level);
                 ESP_LOGE(TAG_BLE, "--- TIMEOUT_EVT");
             }
             break;
