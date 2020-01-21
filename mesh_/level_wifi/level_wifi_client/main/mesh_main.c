@@ -261,7 +261,6 @@ void send_mex_wifi_to_all(int16_t data_tx) {
 }
 
 void send_mex_wifi(int16_t data_tx, int index) {
-    printf("- %s\n", __func__);
     esp_err_t err;
     mesh_addr_t route_table[CONFIG_MESH_ROUTE_TABLE_SIZE];
     int route_table_size = 0;
@@ -280,11 +279,11 @@ void send_mex_wifi(int16_t data_tx, int index) {
     tx_buf[23] = (data_tx >> 8) & 0xff;
     tx_buf[22] = (data_tx >> 0) & 0xff;
 
-    if (data_tx % 2) {
-        memcpy(tx_buf, (uint8_t *) &light_on, sizeof(light_on));
-    } else {
-        memcpy(tx_buf, (uint8_t *) &light_off, sizeof(light_off));
-    }
+//    if (data_tx % 2) {
+//        memcpy(tx_buf, (uint8_t *) &light_on, sizeof(light_on));
+//    } else {
+//        memcpy(tx_buf, (uint8_t *) &light_off, sizeof(light_off));
+//    }
 
 //    ESP_LOGI(TAG_WIFI, "[L:%d][table_size:%d][parent: "
 //            MACSTR
@@ -301,7 +300,10 @@ void send_mex_wifi(int16_t data_tx, int index) {
     }
 
     err = esp_mesh_send(&route_table[index], &data, MESH_DATA_P2P, NULL, 0);
+    char level[7];
+    sprintf(level, "%d", data_tx);
     if (err) {
+        create_message_rapid("W", level, "*");
         ESP_LOGE(TAG_WIFI,
                  "[ROOT-2-UNICAST:%d][L:%d]parent:"
                          MACSTR
@@ -312,9 +314,8 @@ void send_mex_wifi(int16_t data_tx, int index) {
                  MAC2STR(route_table[i].addr), esp_get_free_heap_size(),
                  err, data.proto, data.tos);
     } else {
-        ESP_LOGI("Mex_Sent_WIFI", "[L:%d][to: "
-                MACSTR
-                "]\n", data_tx, MAC2STR(route_table[index].addr));
+        create_message_rapid("I", level, "*");
+        queue_operation('a', 'w', data_tx);
     }
 }
 
@@ -327,7 +328,7 @@ void esp_mesh_p2p_rx_main(void *arg) {
     data.data = rx_buf;
     data.size = RX_SIZE;
     is_running = true;
-
+    char level[7];
     while (is_running) {
         data.size = RX_SIZE;
         err = esp_mesh_recv(&from, &data, portMAX_DELAY, &flag, NULL, 0);
@@ -339,17 +340,12 @@ void esp_mesh_p2p_rx_main(void *arg) {
         if (data.size >= sizeof(value)) {
             value = (data.data[25] << 24) | (data.data[24] << 16) | (data.data[23] << 8) | data.data[22];
         }
-        /* process light control */
-        mesh_light_process(&from, data.data, data.size);
 
-        ESP_LOGW(TAG_WIFI,
-                 "[#RX:%d][L:%d] parent:"
-                         MACSTR
-                         ", receive from "
-                         MACSTR
-                         ", size:%d, heap:%d, flag:%d[err:0x%x, proto:%d, tos:%d]",
-                 value, mesh_layer, MAC2STR(mesh_parent_addr.addr), MAC2STR(from.addr), data.size,
-                 esp_get_free_heap_size(), flag, err, data.proto, data.tos);
+        /* process light control */
+        // mesh_light_process(&from, data.data, data.size);
+        sprintf(level, "%d", value);
+        create_message_rapid("O", level, "*");
+        queue_operation('d', 'w', value);
     }
     vTaskDelete(NULL);
 }
@@ -366,7 +362,7 @@ void esp_mesh_p2p_rx_main(void *arg) {
 
 esp_err_t esp_mesh_comm_p2p_start_3(void) {
     uart_init();
-    xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
+    xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 10, NULL);
     return ESP_OK;
 }
 
@@ -705,6 +701,10 @@ void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_r
     if (err) {
         ESP_LOGE(TAG_BLE, "%s: Generic Level Set failed [%d]", __func__, level);
     }
+    char level_c[7];
+    sprintf(level_c, "%d", level);
+    create_message_rapid("S", level_c, "3");
+    queue_operation('a', 'b', level);
 }
 
 static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
@@ -724,21 +724,17 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 char ttl[4];
                 sprintf(level, "%d", param->status_cb.level_status.present_level);
                 sprintf(ttl, "%d", param->params->ctx.recv_ttl);
-                // TODO [Emilio] commentata scrittua su seriale
-                // create_message_rapid("R", level, ttl);
-                ESP_LOGI("PC", "[opcode: R, level: %s ttl: %s]", level, ttl);
-                ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d receive_ttl: %d",
-                         param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
-                update_queue(param->status_cb.level_status.present_level);
+                // TODO [Emilio] scrittura su seriale
+                //create_message_rapid("R", level, ttl);
+                //update_queue_ble(param->status_cb.level_status.present_level);
             } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
                 char info_level[7];
                 sprintf(info_level, "%d", my_info_level);
                 // TODO [Emilio] commentata scrittua su seriale
-                // create_message_rapid("E", info_level, "0");
-                ESP_LOGE("PC", "[opcode: E, level: %s ttl: 0]", info_level);
+                create_message_rapid("E", info_level, "0");
                 send_mex_wifi(my_info_level, 1);
             }
-            ESP_LOGI(TAG_BLE, "--- SET_STATE_EVT 0x%x", param->params->opcode);
+            //ESP_LOGI(TAG_BLE, "--- SET_STATE_EVT 0x%x", param->params->opcode);
             break;
         }
         case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT: {
@@ -747,9 +743,9 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             sprintf(level, "%d", param->status_cb.level_status.present_level);
             sprintf(ttl, "%d", param->params->ctx.recv_ttl);
             // TODO [Emilio] commentata scrittua su seriale
-            // create_message_rapid("P", level, ttl);
-            ESP_LOGI("PC", "[opcode: P, level: %s ttl: %s]", level, ttl);
-            update_queue(param->status_cb.level_status.present_level);
+            create_message_rapid("R", level, ttl);
+            queue_operation('d', 'b', param->status_cb.level_status.present_level);
+            //update_delay_buffer(param->status_cb.level_status.present_level);
             break;
         }
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
@@ -767,9 +763,9 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
         case ESP_BLE_MESH_GENERIC_CLIENT_EVT_MAX:
             break;
     }
-    ESP_LOGW(TAG_BLE, "%s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x", __func__, event,
-             param->error_code,
-             param->params->ctx.addr, param->params->opcode);
+//    ESP_LOGW(TAG_BLE, "%s: event is %d, error code is %d, addr: 0x%04x opcode is 0x%x", __func__, event,
+//             param->error_code,
+//             param->params->ctx.addr, param->params->opcode);
 }
 
 static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,

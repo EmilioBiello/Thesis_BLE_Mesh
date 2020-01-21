@@ -66,6 +66,10 @@ void board_led_operation(uint8_t pin, uint8_t status_led);
 
 void uart_init(void);
 
+void uart_trasmitting(const char *test_str);
+
+void create_message_rapid(char *status, char *level, char *ttl);
+
 char **str_split(char *a_str, char a_delim);
 
 uint8_t count_tokens(char *a_str, char a_delim);
@@ -74,6 +78,8 @@ void decoding_string(char tokens0, char *token1, char *token2, char *token3);
 
 void command_received(char **tokens, int count);
 
-void update_queue(int key);
+void update_delay_buffer(int key);
+
+void queue_operation(char operation, char tech, int key);
 
 #endif //_MESH_BOARD_H_
