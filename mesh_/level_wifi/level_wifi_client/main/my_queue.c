@@ -98,11 +98,13 @@ int get_front_mex(struct MyQueue *q) {
 void printQueue(struct MyQueue *q) {
     struct QNode *ptr = q->front;
 
+    int i = 0;
     while (ptr) {
         printf("%d -> ", ptr->data);
         ptr = ptr->next;
+        i += 1;
     }
-    printf("\nEnd Queue\n");
+    printf("\nSize Queue: %d\n", i);
 }
 
 int empty_queue(struct MyQueue *q) {
@@ -113,6 +115,7 @@ int empty_queue(struct MyQueue *q) {
     int i = 0;
     while (q->front) {
         temp = q->front;
+        printf("%d -> ", temp->data);
         q->front = q->front->next;
         free(temp);
         if (q->front == NULL) {

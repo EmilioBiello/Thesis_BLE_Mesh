@@ -323,6 +323,7 @@ void esp_mesh_p2p_rx_main(void *arg) {
     data.size = RX_SIZE;
     is_running = true;
     char level[7];
+
     while (is_running) {
         data.size = RX_SIZE;
         err = esp_mesh_recv(&from, &data, portMAX_DELAY, &flag, NULL, 0);
@@ -360,7 +361,7 @@ void define_mesh_address(int index) {
 
 esp_err_t esp_mesh_comm_p2p_start_3(void) {
     uart_init();
-    xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 10, NULL);
+    xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
     return ESP_OK;
 }
 
@@ -759,7 +760,6 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             // TODO [Emilio] commentata scrittua su seriale
             create_message_rapid("R", level, ttl);
             queue_operation('d', 'b', param->status_cb.level_status.present_level);
-            //update_delay_buffer(param->status_cb.level_status.present_level);
             break;
         }
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:

@@ -63,10 +63,10 @@ struct MyQueue *q_wifi;
 int sent_wifi;
 int received_wifi;
 int received_ble;
-int mex_lost = 0;
-int double_sent;
 int16_t level_sent = 1;
 double delay_buffer = 0;
+double delay_min_buff = 0;
+int delay_buff_init = 0;
 bool change_delay = false;
 
 /*******************************************************
@@ -167,11 +167,11 @@ void queue_operation(char operation, char tech, int key) {
             // Add mex in queue
             if (tech == 'b') {
                 enQueue(q_ble, key);
-                ESP_LOGW("Q_BLE", "ADD %d", key);
+                // ESP_LOGW("Q_BLE", "ADD %d", key);
             } else if (tech == 'w') {
                 enQueue(q_wifi, key);
                 sent_wifi += 1;
-                ESP_LOGW("Q_WIFI", "ADD %d", key);
+                // ESP_LOGW("Q_WIFI", "ADD %d", key);
             }
             break;
         case 'd':
@@ -180,16 +180,16 @@ void queue_operation(char operation, char tech, int key) {
                 if (tech == 'b') {
                     int value = delete_node(q_ble, key);
                     if (value > 0) {
-                        ESP_LOGW("Q_BLE", "DELETE %d", key);
+                        // ESP_LOGW("Q_BLE", "DELETE %d", key);
                         received_ble += 1;
                     } else {
-                        double_sent += 1;
                         ESP_LOGE("DOUBLE_BLE", "Value not present in the list: [%d]\n", key);
                     }
+                    update_delay_buffer(key);
                 } else {
                     int value = delete_node(q_wifi, key);
                     if (value > 0) {
-                        ESP_LOGW("Q_WIFI", "DELETE %d", key);
+                        // ESP_LOGW("Q_WIFI", "DELETE %d", key);
                         received_wifi += 1;
                     }
                 }
@@ -201,18 +201,17 @@ void queue_operation(char operation, char tech, int key) {
     }
 }
 
-void reset_variable() {
+void initialize_variables() {
     sent_wifi = 0;
     received_wifi = 0;
     received_ble = 0;
-    mex_lost = 0;
-    double_sent = 0;
     running_rule = false;
     change_delay = false;
     level_sent = 1;
-
-    delay_buffer = (7 * 1000) / m1.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
-    printf("Delay_Buffer :%d\n", (int) delay_buffer);
+    delay_buffer = (40 * 1000) / m1.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
+    delay_min_buff = (1 * 1000) / m1.delay_s; // delay minimo 1 s
+    delay_buff_init = (int) delay_buffer;
+    printf("Initial Delay: %f, min_delay: %f", delay_buffer, delay_min_buff);
     // 1 minute express and number of packets -> (1*60*1000)/ DELAY
     // [1 minute - 50 ms frequency = 1200 packet]
 }
@@ -221,10 +220,26 @@ void update_delay_buffer(int key) {
     if (change_delay) {
         // TODO [Emilio] delay_1 = delay_0 + alpha*(R - delay_0)
         // TODO [Emilio] delay_1 = alpha*R + (1-alpha) * delay_0
-        // TODO alpha
+        // TODO alpha = 0.05 --> 1-alpha = 0.95
+        int diff = level_sent - key;
+        double new_delay = (0.1 * diff) + (0.9 * delay_buffer);
 
-        delay_buffer = (0.05 * (level_sent - key)) + ((1 - 0.05) * delay_buffer);
-        printf("NEW VALUE DELAY: --> %d \n", (int) delay_buffer);
+        int last_delay = (int) delay_buffer;
+        if (new_delay >= delay_min_buff && new_delay <= delay_buff_init) {
+            delay_buffer = new_delay; // a <= delay <= b
+        } else if (new_delay > delay_buff_init) {
+            delay_buffer = delay_buff_init; // delay > b
+        } else {
+            delay_buffer = delay_min_buff; // delay < a
+        }
+
+        if (last_delay != (int) delay_buffer) {
+            int delay = (int) delay_buffer;
+            char new[7];
+            sprintf(new, "%d", delay);
+            create_message_rapid("T", new, "*");
+            ESP_LOGE("TIME", "Change Delay: %d --> %d", last_delay, delay);
+        }
     }
 }
 
@@ -234,72 +249,79 @@ void re_send_mex() {
         if ((level_sent - front_value) > (int) delay_buffer) {
             int value = deQueue(q_ble);
             send_mex_wifi(value);
+            ESP_LOGE("WIFI", "SEND %d [%d - %d]", value, level_sent, front_value);
         }
     }
 }
 
-void clear_queue() {
-    printQueue(q_ble);
-    printQueue(q_wifi);
+void info_test() {
     ESP_LOGE("END", "Received BLE: %d", received_ble);
     ESP_LOGE("END", "Sent wifi: %d Received wifi: %d --- diff: %d", sent_wifi, received_wifi,
              (received_wifi - sent_wifi));
     ESP_LOGE("END", "TOTALE Received: %d", (received_ble + received_wifi));
-    ESP_LOGE("END", "Double Sent: %d", double_sent);
+
+    for (int j = 0; j < 5; ++j) {
+        gpio_set_level(LED_BLE, LED_ON);
+        gpio_set_level(LED_WIFI, LED_ON);
+        vTaskDelay(m1.delay_s / portTICK_PERIOD_MS);
+        gpio_set_level(LED_BLE, LED_OFF);
+        gpio_set_level(LED_WIFI, LED_OFF);
+    }
 
     int i = empty_queue(q_ble);
     ESP_LOGE("END", "Element in Queue BLE: %d", i);
     i = empty_queue(q_wifi);
     ESP_LOGE("END", "Element in Queue WIFI: %d", i);
-
-    reset_variable();
-    gpio_set_level(LED_BLE, LED_ON);
-    gpio_set_level(LED_WIFI, LED_ON);
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-    gpio_set_level(LED_BLE, LED_OFF);
-    gpio_set_level(LED_WIFI, LED_OFF);
 }
 
 void execute_rule() {
-    reset_variable();
+    initialize_variables();
     q_ble = create_queue();
     q_wifi = create_queue();
     running_rule = true;
 
-    int initial_wait = (int) delay_buffer;
     const TickType_t xDelay = m1.delay_s / portTICK_PERIOD_MS;
     printf("Start after first delay: %d --> delay loop: %d\n", m1.delay_s, xDelay);
+    printf("Delay_Buffer :%d [min: %d]\n", (int) delay_buffer, (int) delay_min_buff);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    TickType_t xStart;
-    TickType_t xEnd;
-    TickType_t xDifference;
+
+//    TickType_t xStart;
+//    TickType_t xEnd;
+//    TickType_t xDifference;
+
+    TickType_t xLastWakeTime = xTaskGetTickCount();;
 
     for (int i = 0; i < m1.n_mex_s; ++i) {
-        xStart = xTaskGetTickCount();
+        vTaskDelayUntil(&xLastWakeTime, xDelay);
+        // xStart = xTaskGetTickCount();
         send_message_BLE(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, m1.ack_s);
 
-        if (level_sent >= initial_wait) {
+        if (level_sent >= delay_buff_init) {
             re_send_mex();
+            if (!change_delay) {
+                change_delay = true;
+            }
         }
 
         level_sent += 1;
 
-        xEnd = xTaskGetTickCount();
-        xDifference = xDelay - (xEnd - xStart);
-        if (xDifference > 0) {
-            if (xDifference > xDelay) {
-                vTaskDelay(xDelay); // delay is milliseconds
-            } else {
-                vTaskDelay(xDifference);// delay is milliseconds
-            }
-        }
+//        xEnd = xTaskGetTickCount();
+//        xDifference = xDelay - (xEnd - xStart);
+//        //ESP_LOGW("TIME", "start: %d, end: %d --> diff: %d", xStart, xEnd, xDifference);
+//        if (xDifference > 0) {
+//            if (xDifference > xDelay) {
+//                vTaskDelay(xDelay); // delay is milliseconds
+//            } else {
+//                vTaskDelay(xDifference);// delay is milliseconds
+//            }
+//        } else {
+//            vTaskDelay(0);
+//        }
     }
-    // TODO inviare al PC
+    create_message_rapid("F", "0", "0");
     ESP_LOGE("RULE", "End send");
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
-    //re_send_last_mex(xDelay);
-    clear_queue();
+    info_test();
 }
 
 void decoding_string(char tokens0, char *token1, char *token2, char *token3, char *token4) {
@@ -335,14 +357,15 @@ void decoding_string(char tokens0, char *token1, char *token2, char *token3, cha
 void command_received(char **tokens, int count) {
     count = count - 2;
     switch (tokens[0][0]) {
-        case '#': {
+        case '#':
+            running_rule = false;
             char **t1_char = str_split(tokens[1], ':');
             uint16_t level = strtoul((const char *) t1_char[1], NULL, 10);
             send_mex_wifi_to_all(level);
             printf("WIFI send mex\n");
-        }
             break;
         case '@':
+            running_rule = false;
             if (count == 2) {
                 decoding_string('@', tokens[1], tokens[2], "unack", "*");
                 send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, false);
@@ -360,7 +383,7 @@ void command_received(char **tokens, int count) {
             printf("addr: %hhu\n", m1.addr_s);
             printf("delay: %u\n", m1.delay_s);
             execute_rule();
-            printf("Rule\n");
+            printf("End Rule\n");
             break;
         default:
             printf("Comando Errato\n");
@@ -383,7 +406,14 @@ void create_message_rapid(char *status, char *level, char *ttl) {
 
     uart_trasmitting(str3);
     free(str3);
-    ESP_LOGI("PC", "[status: %s, level: %s ttl: %s]", status, level, ttl);
+
+    if (strcmp(status, "I") == 0 || strcmp(status, "S") == 0) {
+        ESP_LOGI("PC", "[status: %s, level: %s ttl: %s]", status, level, ttl);
+    } else if (strcmp(status, "R") == 0 || strcmp(status, "O") == 0) {
+        ESP_LOGW("PC", "[status: %s, level: %s ttl: %s]", status, level, ttl);
+    } else {
+        ESP_LOGE("PC", "[status: %s, level: %s ttl: %s]", status, level, ttl);
+    }
 }
 
 uint8_t count_tokens(char *a_str, const char a_delim) {
@@ -484,5 +514,5 @@ void uart_trasmitting(const char *test_str) {
 
 void uart_init(void) {
     printf("- %s\n", __func__);
-    xTaskCreate(uart_task, "uart_task", 3072, NULL, 10, NULL);
+    xTaskCreate(uart_task, "uart_task", 3072, NULL, 5, NULL);
 }
