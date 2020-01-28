@@ -9,7 +9,7 @@
 #include "esp_event.h"
 #include "esp_mesh.h"
 #include "esp_mesh_internal.h"
-/* WIFI */
+/* BLE */
 #include "esp_ble_mesh_defs.h"
 #include "esp_ble_mesh_common_api.h"
 #include "esp_ble_mesh_networking_api.h"
@@ -46,20 +46,6 @@ static bool is_mesh_connected = false;
 static mesh_addr_t mesh_parent_addr;
 static int mesh_layer = -1;
 
-mesh_light_ctl_t light_on = {
-        .cmd = MESH_CONTROL_CMD,
-        .on = 1,
-        .token_id = MESH_TOKEN_ID,
-        .token_value = MESH_TOKEN_VALUE,
-};
-
-mesh_light_ctl_t light_off = {
-        .cmd = MESH_CONTROL_CMD,
-        .on = 0,
-        .token_id = MESH_TOKEN_ID,
-        .token_value = MESH_TOKEN_VALUE,
-};
-
 /*******************************************************
  *                Variable Definitions BLE
  *******************************************************/
@@ -68,7 +54,7 @@ extern struct _led_state led_state[2];
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
-        .relay = ESP_BLE_MESH_RELAY_ENABLED,
+        .relay = ESP_BLE_MESH_RELAY_DISABLED,
         .beacon = ESP_BLE_MESH_BEACON_ENABLED,
 #if defined(CONFIG_BLE_MESH_FRIEND)
         .friend_state = ESP_BLE_MESH_FRIEND_ENABLED,
@@ -136,94 +122,11 @@ static esp_ble_mesh_prov_t provision = {
 /*******************************************************
  *                Function Definitions WIFI
  *******************************************************/
-void esp_mesh_p2p_tx_main(void *arg) {
-    int i;
-    esp_err_t err;
-    int send_count = 0;
-    mesh_addr_t route_table[CONFIG_MESH_ROUTE_TABLE_SIZE];
-    int route_table_size = 0;
-    mesh_data_t data;
-    data.data = tx_buf;
-    data.size = sizeof(tx_buf);
-    data.proto = MESH_PROTO_BIN;
-    data.tos = MESH_TOS_P2P;
-    is_running = true;
-
-    while (is_running) {
-        /* non-root do nothing but print */
-        if (!esp_mesh_is_root()) {
-            ESP_LOGI(TAG_WIFI, "Layer:%d, rtableSize:%d, %s", mesh_layer,
-                     esp_mesh_get_routing_table_size(),
-                     (is_mesh_connected && esp_mesh_is_root()) ? "ROOT" : is_mesh_connected ? "NODE" : "DISCONNECT");
-            vTaskDelay(10 * 1000 / portTICK_RATE_MS);
-            continue;
-        }
-        esp_mesh_get_routing_table((mesh_addr_t *) &route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6, &route_table_size);
-        if (send_count && !(send_count % 100)) {
-            ESP_LOGI(TAG_WIFI, "size:%d/%d,send_count:%d", route_table_size, esp_mesh_get_routing_table_size(),
-                     send_count);
-        }
-        send_count++;
-        tx_buf[25] = (send_count >> 24) & 0xff;
-        tx_buf[24] = (send_count >> 16) & 0xff;
-        tx_buf[23] = (send_count >> 8) & 0xff;
-        tx_buf[22] = (send_count >> 0) & 0xff;
-
-        if (send_count % 2) {
-            memcpy(tx_buf, (uint8_t *) &light_on, sizeof(light_on));
-        } else {
-            memcpy(tx_buf, (uint8_t *) &light_off, sizeof(light_off));
-        }
-
-        ESP_LOGI(TAG_WIFI, "[L:%d][table_size:%d][parent: "
-                MACSTR
-                "][me: "
-                MACSTR
-                "]\n", mesh_layer, esp_mesh_get_routing_table_size(), MAC2STR(mesh_parent_addr.addr),
-                 MAC2STR(route_table[0].addr));
-        for (i = 0; i < route_table_size; i++) {
-            err = esp_mesh_send(&route_table[i], &data, MESH_DATA_P2P, NULL, 0);
-            if (err) {
-                ESP_LOGE(TAG_WIFI,
-                         "[ROOT-2-UNICAST:%d][L:%d]parent:"
-                                 MACSTR
-                                 " to "
-                                 MACSTR
-                                 ", heap:%d[err:0x%x, proto:%d, tos:%d]",
-                         send_count, mesh_layer, MAC2STR(mesh_parent_addr.addr),
-                         MAC2STR(route_table[i].addr), esp_get_free_heap_size(),
-                         err, data.proto, data.tos);
-            } else if (!(send_count % 100)) {
-                ESP_LOGW(TAG_WIFI,
-                         "[ROOT-2-UNICAST:%d][L:%d][rtableSize:%d]parent:"
-                                 MACSTR
-                                 " to "
-                                 MACSTR
-                                 ", heap:%d[err:0x%x, proto:%d, tos:%d]",
-                         send_count, mesh_layer,
-                         esp_mesh_get_routing_table_size(),
-                         MAC2STR(mesh_parent_addr.addr),
-                         MAC2STR(route_table[i].addr), esp_get_free_heap_size(),
-                         err, data.proto, data.tos);
-            } else {
-                ESP_LOGI("Mex_Sent", "[#TX:%d][to: "
-                        MACSTR
-                        "]\n", send_count, MAC2STR(route_table[i].addr));
-            }
-        }
-        /* if route_table_size is less than 10, add delay to avoid watchdog in this task. */
-        if (route_table_size < 5) {
-            vTaskDelay(10 * 1000 / portTICK_RATE_MS);
-        }
-    }
-    vTaskDelete(NULL);
-}
-
 void send_data(int value, mesh_addr_t from, mesh_data_t data) {
     esp_err_t err;
     err = esp_mesh_send(&from, &data, MESH_DATA_P2P, NULL, 0);
     if (err) {
-        ESP_LOGE(TAG_WIFI, "[ROOT-2-UNICAST][%d][L:%d] from: "
+        ESP_LOGE(TAG_WIFI, "[%d][L:%d] from: "
                 MACSTR
                 ", heap:%d[err:0x%x, proto:%d, tos:%d]",
                  value, mesh_layer, MAC2STR(from.addr), esp_get_free_heap_size(), err, data.proto, data.tos);
@@ -261,17 +164,9 @@ void esp_mesh_p2p_rx_main(void *arg) {
 
         /* process light control */
         //mesh_light_process(&from, data.data, data.size);
-        board_led_operation_wifi(LED_WIFI, status_led_wifi);
+        board_led_operation_wifi(LED_BLE, status_led_wifi);
 
         status_led_wifi = !status_led_wifi;
-//        ESP_LOGW(TAG_WIFI,
-//                 "[#RX:%d][L:%d] parent:"
-//                         MACSTR
-//                         ", receive from "
-//                         MACSTR
-//                         ", size:%d, heap:%d, flag:%d[err:0x%x, proto:%d, tos:%d]",
-//                 value, mesh_layer, MAC2STR(mesh_parent_addr.addr), MAC2STR(from.addr), data.size,
-//                 esp_get_free_heap_size(), flag, err, data.proto, data.tos);
     }
     vTaskDelete(NULL);
 }
@@ -281,7 +176,7 @@ esp_err_t esp_mesh_comm_p2p_start(void) {
     if (!is_comm_p2p_started) {
         is_comm_p2p_started = true;
         // xTaskCreate(esp_mesh_p2p_tx_main, "MPTX", 3072, NULL, 5, NULL);
-        xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
+        xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 3, NULL);
     }
     return ESP_OK;
 }
@@ -527,7 +422,7 @@ void my_wifi_init() {
     ESP_ERROR_CHECK(esp_event_handler_register(MESH_EVENT, ESP_EVENT_ANY_ID, &mesh_event_handler, NULL));
     ESP_ERROR_CHECK(esp_mesh_set_max_layer(CONFIG_MESH_MAX_LAYER));
     ESP_ERROR_CHECK(esp_mesh_set_vote_percentage(1));
-    ESP_ERROR_CHECK(esp_mesh_set_ap_assoc_expire(10));
+    ESP_ERROR_CHECK(esp_mesh_set_ap_assoc_expire(30));
     mesh_cfg_t cfg = MESH_INIT_CONFIG_DEFAULT();
     /* mesh ID */
     memcpy((uint8_t *) &cfg.mesh_id, MESH_ID, 6);

@@ -16,10 +16,6 @@
 #define LED_BLE GPIO_NUM_26
 #define LED_BLE_1 GPIO_NUM_27
 
-#define  MESH_TOKEN_ID       (0x0)
-#define  MESH_TOKEN_VALUE    (0xbeef)
-#define  MESH_CONTROL_CMD    (0x2)
-
 /*******************************************************
  *                Type Definitions
  *******************************************************/
@@ -28,13 +24,6 @@
 /*******************************************************
  *                Structures
  *******************************************************/
-typedef struct {
-    uint8_t cmd;
-    bool on;
-    uint8_t token_id;
-    uint16_t token_value;
-} mesh_light_ctl_t;
-
 struct _led_state {
     uint8_t current;
     uint8_t previous;
@@ -50,8 +39,6 @@ struct _led_state {
  *                Function Definitions
  *******************************************************/
 esp_err_t mesh_light_init(void);
-
-esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len);
 
 void mesh_connected_indicator(int layer);
 

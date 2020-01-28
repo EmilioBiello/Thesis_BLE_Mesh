@@ -109,23 +109,3 @@ void mesh_disconnected_indicator(void) {
     }
     ESP_LOGW("LIGHT", "Warning Light --- mesh_disconnected_indicator\n");
 }
-
-esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len) {
-    mesh_light_ctl_t *in = (mesh_light_ctl_t *) buf;
-    if (!from || !buf || len < sizeof(mesh_light_ctl_t)) {
-        return ESP_FAIL;
-    }
-    if (in->token_id != MESH_TOKEN_ID || in->token_value != MESH_TOKEN_VALUE) {
-        return ESP_FAIL;
-    }
-    if (in->cmd == MESH_CONTROL_CMD) {
-        if (in->on) {
-            printf("Turning on the LED WIFI\n");
-            gpio_set_level(LED_WIFI, LED_ON);
-        } else {
-            printf("Turning off the LED WIFI\n");
-            gpio_set_level(LED_WIFI, LED_OFF);
-        }
-    }
-    return ESP_OK;
-}
