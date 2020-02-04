@@ -26,6 +26,12 @@ def save_json_data(path, data):
         json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False)
 
 
+def save_json_data_2(path, data):
+    print("\x1b[1;32;40m Saving: {}\x1b[0m".format(path))
+    with open(path, 'w', encoding='utf-8') as json_file:
+        json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False, indent=3)
+
+
 def save_json_data_elegant(path, data):
     done, path_2 = get_path_media_or_PC(path_1=path)
     if done:
@@ -40,7 +46,7 @@ def save_json_data_elegant(path, data):
         json.dump(data, json_file, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=3)
 
 
-def open_file_and_return_data(code, path):
+def open_file_and_return_data(path, code=0):
     if code == 1:
         path = get_path_media_or_PC(path_1=path)
     with open(path) as json_file:
@@ -52,6 +58,10 @@ def print_data_as_json(data):
     print(json.dumps(data, default=convert_timestamp, ensure_ascii=False, sort_keys=True))
 
 
+def print_info_as_json(info):
+    print(json.dumps(info, default=convert_timestamp, ensure_ascii=False, sort_keys=True, indent=3))
+
+
 def define_directory(directory):
     if not os.path.exists(path=directory):
         os.makedirs(directory)
@@ -60,8 +70,8 @@ def define_directory(directory):
 
 def get_path_media_or_PC(path_1):
     media = "/media/emilio/BLE/"
-    sub_dir = path_1.split('/')[1]
-    file_name = path_1.split('/')[2]
+    sub_dir = path_1.split('/')[2]
+    file_name = path_1.split('/')[3]
 
     if os.path.exists(path=media):
         directory = media + "json_file/" + sub_dir + "/"
@@ -78,6 +88,19 @@ def get_path_media_or_PC(path_1):
         os.makedirs(directory)
 
     return done, path
+
+
+def get_grouped_files(source_path, delay, index_delay):
+    list_of_files = glob.glob(source_path)
+    list_of_files.sort()
+
+    for i in range(len(list_of_files)):
+        name = list_of_files[i]
+        data = open_file_and_return_data(name)
+        if data['_command']['delay'] != delay[index_delay]:
+            raise Exception(
+                "\x1b[1;31;40m File Error in this directory. [{}] --> {} ]\x1b[0m".format(delay[index_delay], name))
+    return list_of_files
 
 
 def get_mex_couple(list_of_items, value_to_find):
@@ -98,6 +121,29 @@ def look_into_element(e):
         if re.match("^[S]$", e['type_mex']):
             send = True
     return match, e['message_id'], send
+
+
+def look_into_it(word_info, info_s, e):
+    s = e['type_mex']
+    my_type = ['send_ble', 'receive_ble', 'error_ble',
+               'send_wifi', 'receive_wifi', 'error_wifi']
+    if re.match("^[S]$", s):
+        index = 0
+    elif re.match("^[R]$", s):
+        index = 1
+    elif re.match("^[E]$", s):
+        index = 2
+    elif re.match("^[I]$", s):
+        index = 3
+    elif re.match("^[O]$", s):
+        index = 4
+    elif re.match("^[W]$", s):
+        index = 5
+    if my_type[index] in word_info:
+        raise Exception("Double {} -> {}".format(my_type[index], e))
+    word_info[my_type[index]] = e
+    info_s[my_type[index]] += 1
+    return word_info, info_s
 
 
 def convert_timedelta(duration):

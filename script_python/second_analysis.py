@@ -6,13 +6,15 @@ from pandas.io.json import json_normalize
 import glob
 import datetime as dt
 import time
+import math
 
 # TODO cambiare index, runs e topic
-index_my_delay = 3  # indice di my_delay [0,1,2,3,4,5,6,7,8]
-runs = 0  # 1,0 Eseguire prima 1 e poi 0
+index_my_delay = 0  # indice di my_delay [0,1,2,3,4,5,6,7,8]
+runs = 1  # 1,0 Eseguire prima 1 e poi 0
 topic = "0"  # Number of Relay [0,1,2]
+packet_not_sent_as_lost = True  # solo per 50 e 75 ms
 my_delay = [50, 75, 100, 125, 150, 200, 250, 500, 1000]  # 50, 75, 100, 125, 150, 200, 250, 500, 1000
-path_analysis = my.path_media + "json_file/test_relay_" + topic + "/*_analysis.json"
+analysis = "2"  # "2" or "0"
 # path_analysis = my.path_media + "json_file/test_2019_12_29/*_analysis.json"
 
 # s_time_0 = ["9_30", "14_34", "17_02", "16_27", "17_05"]
@@ -33,6 +35,16 @@ e_time_2 = ["14_24", "15_04", "15_46", "10_27", "11_10", "18_47", "19_25", "12_2
 
 # ["50", "75", "100", "125", "150", "200", "250", "500", "1000"]
 
+if analysis == "2":  # prevede l'analisi solo di 5 minuti e non 6 minuti
+    path_analysis = my.path_media + "json_file/test_relay_" + topic + "/*_analysis_2.json"
+    name_key_data = 'couples'
+    name_key_analysis = 'analysis_value'
+elif analysis == "0":  # prevede l'analisi di 6 minuti [tutta la prova]
+    path_analysis = my.path_media + "json_file/test_relay_" + topic + "/*_analysis.json"
+    name_key_data = 'second_analysis'
+    name_key_analysis = 'analysis'
+else:
+    raise Exception("Errore type analysis file")
 
 delay = "delay_" + str(my_delay[index_my_delay])
 start_time = "9_30"
@@ -127,7 +139,7 @@ def outlier_element(data, l_bound_1, u_bound_1):
     valid_data_1 = 0
     outlier_1 = 0
     list_valid_value = list()
-    for k, v in data['second_analysis'].items():
+    for k, v in data[str(name_key_data)].items():
         if l_bound_1 <= v['latency'] <= u_bound_1:
             valid_data_1 += 1
             list_valid_value.append(v['latency'])
@@ -141,7 +153,7 @@ def outlier_element(data, l_bound_1, u_bound_1):
 
 def config_list(data):
     list_latency = list()
-    for key, value in data['second_analysis'].items():
+    for key, value in data[str(name_key_data)].items():
         list_latency.append(value['latency'])
         all_measurement.append(value['latency'])
         send_time_obj = dt.datetime.strptime(value['send_time'], '%Y-%m-%d %H:%M:%S.%f')
@@ -160,13 +172,19 @@ def save_statistics(data, index, name):
     list_latency = config_list(data=data)
     mean, std, l_b_1, u_b_1, q1_1, q3_1, iqr_1, margine_errore, min_, max_ = statistcs(dataset=list_latency)
 
-    time_test = data["analysis"]["test_time"]
+    time_test = data[name_key_analysis]["test_time"]
     # Packet Delivery Ratio --> PDR
-    packet_delivery_ratio = float(int(data["analysis"]["packet_received"]) / int(data["analysis"]["packet_sent"]))
-    goodput = (data["analysis"]["packet_received"] * 2) / time_test  # 2 byte di dati utili
+    if analysis == "2":
+        packet_delivery_ratio = float(
+            int(data[name_key_analysis]["ricevuti"]) / int(data[name_key_analysis]["inviati"]))
+        goodput = (data[name_key_analysis]["ricevuti"] * 2) / time_test  # 2 byte di dati utili
+    else:
+        packet_delivery_ratio = float(
+            int(data[name_key_analysis]["packet_received"]) / int(data[name_key_analysis]["packet_sent"]))
+        goodput = (data[name_key_analysis]["packet_received"] * 2) / time_test  # 2 byte di dati utili
 
     # RTT: Round Trip Time
-    my_dictionary[index] = {'analysis': data["analysis"], 'file_name': name,
+    my_dictionary[index] = {'analysis': data[name_key_analysis], 'file_name': name,
                             'statistics_latency': {
                                 'media': mean,
                                 'std': std,
@@ -198,12 +216,19 @@ def save_statistics(data, index, name):
     my_min.append(min_)
     my_max.append(max_)
 
-    packets_sent.append(data["analysis"]["packet_sent"])
-    packets_not_sent.append(data["analysis"]["packet_not_sent"])
-    packets_lost.append(data["analysis"]["packet_lost"])
-    packets_received.append(data["analysis"]["packet_received"])
+    if analysis == "2":
+        packets_sent.append(data[name_key_analysis]["inviati"])
+        packets_not_sent.append(data[name_key_analysis]["errore"])
+        packets_lost.append(data[name_key_analysis]["persi_e_error"])
+        packets_received.append(data[name_key_analysis]["ricevuti"])
+    elif analysis == "0":
+        packets_sent.append(data[name_key_analysis]["packet_sent"])
+        packets_not_sent.append(data[name_key_analysis]["packet_not_sent"])
+        packets_lost.append(data[name_key_analysis]["packet_lost"])
+        packets_received.append(data[name_key_analysis]["packet_received"])
 
-    tempo_esperimento.append(data["analysis"]["test_time"])
+    tempo_esperimento.append(data[name_key_analysis]["test_time"])
+
     goodput_list.append(goodput)
     packed_delivery_ratio_list.append(packet_delivery_ratio)
 
@@ -234,10 +259,13 @@ def summary():
     goodput_mean = np.mean(goodput_list)
     esperimento_mean = np.mean(tempo_esperimento)
 
-    perc_sent = (packets_sent_mean * 100) / my_dictionary["_command"]["n_mex"]
-    perc_not_sent = (packets_not_sent_mean * 100) / my_dictionary["_command"]["n_mex"]
-    perc_lost = (packets_lost_mean * 100) / packets_sent_mean
-    perc_received = (packets_received_mean * 100) / packets_sent_mean
+    if analysis == "2":
+        total_mex_five_min = [6000, 4000, 3000, 2400, 2000, 1500, 1200, 600, 300]
+        sent = total_mex_five_min[index_my_delay]
+    else:
+        # total_mex_six_min = [7200, 4800, 3600, 2880, 2400, 1800, 1440, 720, 360]
+        # sent = total_mex_six_min[index_my_delay]
+        sent = my_dictionary["_command"]["n_mex"]
 
     mean_1, std_1, l_b_1, u_b_1, q1_1, q3_1, iqr_1, margine_errore_1, min_1, max_1 = statistcs(dataset=all_measurement)
     print("--- SUMMARY ---")
@@ -261,11 +289,7 @@ def summary():
                                               'packet_sent': packets_sent_mean,
                                               'packet_not_sent': packets_not_sent_mean,
                                               'packet_lost': packets_lost_mean,
-                                              'packet_received': packets_received_mean,
-                                              'percentage_sent': perc_sent,
-                                              'percentage_not_sent': perc_not_sent,
-                                              'percentage_lost': perc_lost,
-                                              'percentage_received': perc_received},
+                                              'packet_received': packets_received_mean},
                                           'mean_test_time': esperimento_mean},
                                 'graph': {
                                     'PDR': packet_delivery_ratio_mean,  # Pacchetti Ricevuti / Pacchetti Inviati
@@ -355,7 +379,7 @@ def plot_points(data, index):
     else:
         color = "black"
 
-    for key, value in data['second_analysis'].items():
+    for key, value in data[str(name_key_data)].items():
         x.append(int(key))
         latency.append(value['latency'])
 
@@ -368,6 +392,7 @@ def plot_points(data, index):
 
     plt.xlabel('x - packets')
     plt.ylabel('y - latency [seconds]')
+    # plt.show()
 
 
 def combine_two_plot():

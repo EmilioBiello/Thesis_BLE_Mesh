@@ -3,23 +3,298 @@ import statistics
 import emilio_function as my
 import re
 import time
+import math
 
 relay = 0  # 0,1,2
 path_pc = "./"
 path_media = "/media/emilio/BLE/"
-file_name = "json_file/test_2020_01_07/test_20_01_07-10_24_40.json"
+file_name = "json_file/test_2019_12_22/test_19_12_22-18_51_50.json"
 path = path_pc + file_name
 
 preprocessing_path = file_name[:-5] + "_preprocessing.json"
 analysis_path = file_name[:-5] + "_analysis.json"
+analysis_2_path = file_name[:-5] + "_analysis_2.json"
 
 path_1 = path_media + file_name[:-5] + "_preprocessing.json"
 path_2 = path_media + file_name[:-5] + "_analysis.json"
+path_3 = path_media + file_name[:-5] + "_analysis_2.json"
 
 regular_expression_mex = "^[R|S|P|E],[0-9]{1,5},[0-9]$"
 find_all_matches = "[P|S|R|E],[0-9]{1,5},[0-9]"
 
 error_ttl = list()
+
+
+def analysis_preprocessing_2(start, end, l_min, l_max):
+    data_prepreocessing = my.open_file_and_return_data(code=0, path=path_1)
+    sent = 0
+    error = 0
+    received = 0
+    l_2 = set()
+    l_3 = 0
+    for value in data_prepreocessing['messages']:
+        if start <= dt.datetime.strptime(value['time'], '%Y-%m-%d %H:%M:%S.%f') <= end:
+            if l_min <= int(value['message_id']) <= l_max:
+                if value['type_mex'] == 'S':
+                    sent = sent + 1
+                elif value['type_mex'] == 'P':
+                    received = received + 1
+                    l_2.add(int(value['message_id']))
+                elif value['type_mex'] == 'E':
+                    error = error + 1
+            else:
+                l_3 += 1
+
+    print("Inviati: {}"
+          "\nRicevuti: {}"
+          "\nErrore: {}".format(sent, received, error))
+    print("Mex non considerati: {}".format(l_3))
+    return sent, received, error, l_2
+
+
+def detect_time(data, new_start, new_end):
+    start_ok = False
+    end_ok = False
+    d = {int(k): v for k, v in data['second_analysis'].items()}
+    index = 1
+    first_send = 0
+    last_send = 0
+    s1_datetime = ""
+    while not start_ok:
+        if int(index) in d:
+            s1_datetime = dt.datetime.strptime(d[index]['send_time'], '%Y-%m-%d %H:%M:%S.%f')
+            if (new_start - s1_datetime).total_seconds() < 5:
+                print("new_start is {} --> {}".format(s1_datetime, index))
+                first_send = index
+                start_ok = True
+        index += 1
+
+    index = max(d, key=int)
+    s2_datetime = ""
+    s3_datetime = ""
+    while not end_ok:
+        if int(index) in d:
+            s2_datetime = dt.datetime.strptime(d[index]['send_time'], '%Y-%m-%d %H:%M:%S.%f')
+            if (s2_datetime - new_end).total_seconds() < 5:
+                print("new_end is {} --> {}".format(s2_datetime, index))
+                last_send = index
+                s3_datetime = dt.datetime.strptime(d[index]['status_time'], '%Y-%m-%d %H:%M:%S.%f')
+                print("new_end_correct [receive]: ", s3_datetime)
+                diff_new = s3_datetime - s1_datetime
+                h1, m1, s1 = my.convert_timedelta(diff_new)
+                print("{}:{}.{} [mm:s.us]".format(m1, s1, diff_new.total_seconds()))
+                end_ok = True
+        index -= 1
+
+    diff = s2_datetime - s1_datetime
+    hours, minutes, seconds = my.convert_timedelta(diff)
+    print("-----------------------------------")
+    print("new_start: {}".format(s1_datetime))
+    print("new_end {}".format(s2_datetime))
+    print("{m}:{s}.{f} [mm:s.us]".format(m=minutes, s=seconds, f=diff.microseconds))
+    print("-----------------------------------")
+    start = s1_datetime
+    end = s2_datetime
+    min_diff = 100
+    id_min = 0
+    max_diff = 0
+    id_max = 0
+    new_data = dict()
+    l_1 = set()
+    for k, v in data['second_analysis'].items():
+        s1 = dt.datetime.strptime(v['send_time'], '%Y-%m-%d %H:%M:%S.%f')
+        if start <= s1 <= end:
+            new_data[int(k)] = v
+            l_1.add(int(k))
+            if v['difference'] < min_diff:
+                min_diff = v['difference']
+                id_min = int(k)
+            if v['difference'] > min_diff:
+                max_diff = v['difference']
+                id_max = int(k)
+
+    print("Differeza min:{} [{}] --- max:{} [{}]".format(min_diff, id_min, max_diff, id_max))
+    sent, received, error, l_2 = analysis_preprocessing_2(start=start, end=s3_datetime, l_min=first_send,
+                                                          l_max=last_send)
+
+    lost = sent - received - error
+    lost_and_error = lost + error
+    if (lost_and_error + received) != sent:
+        raise Exception("Errore  conteggio")
+
+    if received != len(new_data):
+        raise Exception("ERORORE dimensioni---- received: {} couple: {}".format(received, len(new_data)))
+    print(l_1.difference(l_2))
+    print("[{}]s Delay: {}".format(diff.total_seconds(), ((s2_datetime - s1_datetime).total_seconds() / sent)))
+    return new_data, start, end, s3_datetime, sent, received, error, lost, lost_and_error
+
+
+def detect_packets(data, duration, percentage):
+    delay = int(data['_command']['delay'])
+    print("DELAY: {}ms".format(delay))
+    formule = 0
+    diff = 0
+    if duration == "5m":
+        formule = (5 * 60 * 1000) / delay
+        formule_1 = (6 * 60 * 1000) / delay
+        diff = formule_1 - formule
+    elif duration == "6m":
+        formule = (6 * 60 * 1000) / delay
+    else:
+        print("errore data_packets")
+        return
+
+    index_start = int(diff * int(percentage) / 100)
+    index_end = int(index_start + formule)
+    index_start += 1
+    print("start_index: {} end_index {}".format(index_start, index_end))
+
+    data_prepreocessing = my.open_file_and_return_data(code=0, path=path_1)
+
+    sent = 0
+    received = 0
+    error = 0
+    last_received_time = dt.datetime.strptime(data_prepreocessing['messages'][0]['time'], '%Y-%m-%d %H:%M:%S.%f')
+    last_received_index = 0
+    removed = 0
+    time_start = ""
+    time_end_sent = ""
+    l_2 = set()
+    for value in data_prepreocessing['messages']:
+        if index_start <= int(value['message_id']) <= index_end:
+            if value['type_mex'] == 'S':
+                if int(value['message_id']) == index_start:
+                    time_start = dt.datetime.strptime(value['time'], '%Y-%m-%d %H:%M:%S.%f')
+                    print("start_send: {} [{}]".format(time_start, value['message_id']))
+                elif int(value['message_id']) == index_end:
+                    time_end_sent = dt.datetime.strptime(value['time'], '%Y-%m-%d %H:%M:%S.%f')
+                    print("end_send: {} [{}]".format(time_end_sent, value['message_id']))
+                sent = sent + 1
+            elif value['type_mex'] == 'P':
+                received = received + 1
+                l_2.add(int(value['message_id']))
+                if dt.datetime.strptime(value['time'], '%Y-%m-%d %H:%M:%S.%f') > last_received_time:
+                    last_received_time = dt.datetime.strptime(value['time'], '%Y-%m-%d %H:%M:%S.%f')
+                    last_received_index = value['message_id']
+            elif value['type_mex'] == 'E':
+                error = error + 1
+        else:
+            removed += 1
+
+    time_end = last_received_time
+    lost = sent - received - error
+    lost_and_error = lost + error
+
+    if (lost_and_error + received) != sent:
+        raise Exception("Errore conteggio!")
+
+    difference = time_end_sent - time_start
+    hours, minutes, seconds = my.convert_timedelta(difference)
+    print("-----------------------------------")
+    print(
+        "TIME experiment: start: {} end: {} --- {}:{}.{} [mm:s.us]".format(time_start, time_end_sent, minutes, seconds,
+                                                                           difference.microseconds))
+    print("Last received at: {}".format(time_end))
+    difference_total = time_end - time_start
+    hours, minutes, seconds = my.convert_timedelta(difference_total)
+    print("TIME total: start: {} end: {} --- {}:{}.{} [mm:s.us]".format(time_start, time_end, minutes, seconds,
+                                                                        difference_total.microseconds))
+
+    print("-----------------------------------")
+    print("end_received: {} - [{}]".format(last_received_time, last_received_index))
+    print("Sent: {}\nReceived: {}\nError: {} Persi: {} [{} - comprende anche error]".format(sent, received, error, lost,
+                                                                                            lost_and_error))
+    print("Non considerati: {}".format(removed))
+    print("-----------------------------------")
+
+    min_diff = 100
+    id_min = 0
+    max_diff = 0
+    id_max = 0
+    new_data = dict()
+    l_1 = set()
+    for k, v in data['second_analysis'].items():
+        s1 = dt.datetime.strptime(v['send_time'], '%Y-%m-%d %H:%M:%S.%f')
+        if time_start <= s1 <= time_end_sent:
+            new_data[int(k)] = v
+            l_1.add(int(k))
+            if v['difference'] < min_diff:
+                min_diff = v['difference']
+                id_min = int(k)
+            if v['difference'] > min_diff:
+                max_diff = v['difference']
+                id_max = int(k)
+
+    if received != len(new_data):
+        print("ERORORE dimensioni---- received: {} couple: {}".format(received, len(new_data)))
+    print(l_1.difference(l_2))
+    print("[{}]s Delay: {}".format(difference.total_seconds(), ((time_end - time_start).total_seconds() / sent)))
+    print("min_diff: {} [{}] \nmax_diff: {} [{}]".format(min_diff, id_min, max_diff, id_max))
+
+    return new_data, time_start, time_end, time_end_sent, sent, received, error, lost, lost_and_error
+
+
+def clean_data(data, approach):
+    print("- {}".format(clean_data.__name__))
+    start_datetime = dt.datetime.strptime(data['analysis']['test_time_first_time'], '%Y-%m-%d %H:%M:%S.%f')
+    end_datetime = dt.datetime.strptime(data['analysis']['test_time_last_time'], '%Y-%m-%d %H:%M:%S.%f')
+    difference_1 = (end_datetime - start_datetime) - dt.timedelta(minutes=5)
+    sec_1 = int(math.ceil(difference_1.total_seconds() * 50 / 100))  # rimuovo il 65% all'inizio e 35% alla fine
+
+    new_start = start_datetime + dt.timedelta(seconds=sec_1)
+    new_end = new_start + dt.timedelta(minutes=5)
+    diff_old = end_datetime - start_datetime
+    h1, m1, s1 = my.convert_timedelta(diff_old)
+    print("-----------------------------------")
+    print("Start: {}  --> end: {}".format(start_datetime, end_datetime))
+    print("{m1}:{s1}.{f1} [mm:s.us]".format(m1=m1, s1=s1, f1=diff_old.total_seconds()))
+    print("-----------------------------------")
+
+    sent = 0
+    received = 0
+    error = 0
+    lost = 0
+    lost_and_error = 0
+    time_start = ""
+    time_end = ""
+    time_end_sent = ""
+    new_data = dict()
+    if approach == "time":
+        new_data, time_start, time_end, time_end_sent, sent, received, error, lost, lost_and_error = detect_time(
+            data=data,
+            new_start=new_start,
+            new_end=new_end)
+    elif approach == "packets":
+        new_data, time_start, time_end, time_end_sent, sent, received, error, lost, lost_and_error = detect_packets(
+            data=data, duration="5m",
+            percentage=65)
+    else:
+        print("Errore approach value")
+
+    hours, minutes, seconds = my.convert_timedelta((time_end - time_start))
+    test_time_m = str(minutes) + " M, " + str(seconds) + " s"
+    hours, minutes, seconds = my.convert_timedelta((time_end_sent - time_start))
+    test_time_sent_m = str(minutes) + " M, " + str(seconds) + " s"
+    new_dataset = dict()
+    new_dataset['_command'] = data['_command']
+    new_dataset['last_analysis'] = data['analysis']
+    new_dataset['analysis_value'] = {
+        'inviati': sent,  # comprende tutti i mex inviati anche quello con errore
+        'ricevuti': received,
+        'errore': error,
+        'persi': lost,
+        'persi_e_error': lost_and_error,
+        'time_start': time_start,
+        'time_end': time_end,
+        'time_end_sent': time_end_sent,
+        'test_time_sent_m': test_time_sent_m,
+        'test_time_m': test_time_m,
+        'test_time_sent': (time_end - time_start).total_seconds(),
+        'test_time': (time_end_sent - time_start).total_seconds()
+    }
+    new_dataset['couples'] = new_data
+    print("-------")
+    return new_dataset
 
 
 # tratta gli error sollevati nella fase precedente e definisce se si tratta di un timeout o di un packet not sent
@@ -194,10 +469,7 @@ def second_analysis(data):
                 differences.append(difference.total_seconds())
                 latencies.append(difference.total_seconds() / 2)
 
-                if int(m_id) < 10:
-                    m_id = "0" + m_id
-
-                dict_analysis[m_id] = {
+                dict_analysis[int(m_id)] = {
                     'send_time': send_time,
                     'status_time': receive_time,
                     'difference': difference.total_seconds(),
@@ -492,6 +764,12 @@ def call_third_analysis_and_save(path_s):
     my.save_json_data_elegant(path=path_s, data=data)
 
 
+def call_fourth_analysis_and_save(path_s):
+    data = my.open_file_and_return_data(code=0, path=path_2)
+    data = clean_data(data=data, approach="packets")  # packets or time
+    my.save_json_data_elegant(path=path_s, data=data)
+
+
 def main():
     # path = my.get_argument()
     my_data = dict()
@@ -543,7 +821,15 @@ def testing_phase():
 
     # Third Analysis
     call_third_analysis_and_save(path_s=analysis_path)
-    # time.sleep(1)
+    time.sleep(1)
+
+    # Fourth Analysis --> clean data use only 5 minutes
+    call_fourth_analysis_and_save(path_s=analysis_2_path)
+
+
+def new_task():
+    # Fourth Analysis --> clean data use only 5 minutes
+    call_fourth_analysis_and_save(path_s=analysis_2_path)
 
 
 if __name__ == "__main__":
