@@ -29,7 +29,6 @@
  *                Constants
  *******************************************************/
 #define RX_SIZE          (1500)
-#define TX_SIZE          (1460)
 #define CID_ESP 0x02E5
 
 uint8_t status_led_ble = 1;
@@ -39,7 +38,6 @@ uint8_t status_led_wifi = 1;
  *                Variable Definitions WIFI
  *******************************************************/
 static const uint8_t MESH_ID[6] = {0x77, 0x77, 0x77, 0x77, 0x77, 0x77};
-static uint8_t tx_buf[TX_SIZE] = {0,};
 static uint8_t rx_buf[RX_SIZE] = {0,};
 static bool is_running = true;
 static bool is_mesh_connected = false;
@@ -54,7 +52,7 @@ extern struct _led_state led_state[2];
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
-        .relay = ESP_BLE_MESH_RELAY_DISABLED,
+        .relay = ESP_BLE_MESH_RELAY_ENABLED,
         .beacon = ESP_BLE_MESH_BEACON_ENABLED,
 #if defined(CONFIG_BLE_MESH_FRIEND)
         .friend_state = ESP_BLE_MESH_FRIEND_ENABLED,
@@ -568,9 +566,6 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
 static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_event_t event,
                                                esp_ble_mesh_generic_server_cb_param_t *param) {
     printf("----\n");
-    ESP_LOGI(TAG_BLE, "event 0x%02x, opcode 0x%04x, src 0x%04x, dst 0x%04x recv_ttl 0x%04x",
-             event, param->ctx.recv_op, param->ctx.addr, param->ctx.recv_dst, param->ctx.recv_ttl);
-
     switch (event) {
         case ESP_BLE_MESH_GENERIC_SERVER_STATE_CHANGE_EVT:
             // Messaggio Ricevuto da tutti i nodi
@@ -603,6 +598,8 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
             ESP_LOGE(TAG_BLE, "Unknown Generic Server event 0x%02x", event);
             break;
     }
+    ESP_LOGI(TAG_BLE, "event 0x%02x, opcode 0x%04x, src 0x%04x, dst 0x%04x recv_ttl 0x%04x",
+             event, param->ctx.recv_op, param->ctx.addr, param->ctx.recv_dst, param->ctx.recv_ttl);
     printf("----\n");
 }
 

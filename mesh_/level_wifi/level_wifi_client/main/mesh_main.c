@@ -9,7 +9,7 @@
 #include "esp_event.h"
 #include "esp_mesh.h"
 #include "esp_mesh_internal.h"
-/* WIFI */
+/* BLE */
 #include "esp_ble_mesh_defs.h"
 #include "esp_ble_mesh_common_api.h"
 #include "esp_ble_mesh_networking_api.h"
@@ -45,19 +45,6 @@ static bool is_mesh_connected = false;
 static mesh_addr_t mesh_parent_addr;
 static int mesh_layer = -1;
 
-mesh_light_ctl_t light_on = {
-        .cmd = MESH_CONTROL_CMD,
-        .on = 1,
-        .token_id = MESH_TOKEN_ID,
-        .token_value = MESH_TOKEN_VALUE,
-};
-
-mesh_light_ctl_t light_off = {
-        .cmd = MESH_CONTROL_CMD,
-        .on = 0,
-        .token_id = MESH_TOKEN_ID,
-        .token_value = MESH_TOKEN_VALUE,
-};
 mesh_addr_t my_route_table[CONFIG_MESH_ROUTE_TABLE_SIZE];
 int my_route_table_size = 0;
 int index_wifi = 0;
@@ -229,12 +216,6 @@ void send_mex_wifi_to_all(int16_t data_tx) {
     tx_buf[23] = (data_tx >> 8) & 0xff;
     tx_buf[22] = (data_tx >> 0) & 0xff;
 
-    if (data_tx % 2) {
-        memcpy(tx_buf, (uint8_t *) &light_on, sizeof(light_on));
-    } else {
-        memcpy(tx_buf, (uint8_t *) &light_off, sizeof(light_off));
-    }
-
     ESP_LOGI(TAG_WIFI, "[L:%d][table_size:%d][parent: "
             MACSTR
             "][me: "
@@ -279,36 +260,14 @@ void send_mex_wifi(int16_t data_tx) {
     tx_buf[23] = (data_tx >> 8) & 0xff;
     tx_buf[22] = (data_tx >> 0) & 0xff;
 
-//    if (data_tx % 2) {
-//        memcpy(tx_buf, (uint8_t *) &light_on, sizeof(light_on));
-//    } else {
-//        memcpy(tx_buf, (uint8_t *) &light_off, sizeof(light_off));
-//    }
-
-//    ESP_LOGI(TAG_WIFI, "[L:%d][table_size:%d][parent: "
-//            MACSTR
-//            "][me: "
-//            MACSTR
-//            "]\n", mesh_layer, esp_mesh_get_routing_table_size(), MAC2STR(mesh_parent_addr.addr),
-//             MAC2STR(route_table[0].addr));
-
     /* SEND DATA */
     err = esp_mesh_send(&my_route_table[index_wifi], &data, MESH_DATA_P2P, NULL, 0);
     char level[7];
     sprintf(level, "%d", data_tx);
     if (err) {
-        create_message_rapid("W", level, "*");
-//        ESP_LOGE(TAG_WIFI,
-//                 "[ROOT-2-UNICAST:%d][L:%d]parent:"
-//                         MACSTR
-//                         " to "
-//                         MACSTR
-//                         ", heap:%d[err:0x%x, proto:%d, tos:%d]",
-//                 data_tx, mesh_layer, MAC2STR(mesh_parent_addr.addr),
-//                 MAC2STR(my_route_table[index].addr), esp_get_free_heap_size(),
-//                 err, data.proto, data.tos);
+        create_message_rapid("W", level, "*", 1);
     } else {
-        create_message_rapid("I", level, "*");
+        create_message_rapid("I", level, "*", 1);
         queue_operation('a', 'w', data_tx);
     }
 }
@@ -339,8 +298,11 @@ void esp_mesh_p2p_rx_main(void *arg) {
         /* process light control */
         // mesh_light_process(&from, data.data, data.size);
         sprintf(level, "%d", value);
-        create_message_rapid("O", level, "*");
+        create_message_rapid("O", level, "*", 0);
         queue_operation('d', 'w', value);
+        ESP_LOGW("PC", "[status: O, level: %s from: "
+                MACSTR
+                "]", level, MAC2STR(from.addr));
     }
     vTaskDelete(NULL);
 }
@@ -349,19 +311,9 @@ void define_mesh_address(int index) {
     index_wifi = index;
 }
 
-//esp_err_t esp_mesh_comm_p2p_start(void) {
-//    static bool is_comm_p2p_started = false;
-//    if (!is_comm_p2p_started) {
-//        is_comm_p2p_started = true;
-//        xTaskCreate(esp_mesh_p2p_tx_main, "MPTX", 3072, NULL, 5, NULL);
-//        xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
-//    }
-//    return ESP_OK;
-//}
-
 esp_err_t esp_mesh_comm_p2p_start_3(void) {
     uart_init();
-    xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
+    xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 4, NULL);
     return ESP_OK;
 }
 
@@ -419,7 +371,14 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
             /* Get Routing Table*/
             esp_mesh_get_routing_table((mesh_addr_t *) &my_route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6,
                                        &my_route_table_size);
-
+            if (my_route_table_size - index_wifi != 1) {
+                index_wifi = my_route_table_size - 1;
+                ESP_LOGW("TABLE", "Add -- index: %d --> addr: "
+                        MACSTR, index_wifi, MAC2STR(my_route_table[index_wifi].addr));
+                char index[7];
+                sprintf(index, "%d", index_wifi);
+                create_message_rapid("N", index, "1", 1); // 1 as append
+            }
         }
             break;
         case MESH_EVENT_ROUTING_TABLE_REMOVE: {
@@ -430,7 +389,14 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
             /* Get Routing Table*/
             esp_mesh_get_routing_table((mesh_addr_t *) &my_route_table, CONFIG_MESH_ROUTE_TABLE_SIZE * 6,
                                        &my_route_table_size);
-
+            if (index_wifi >= my_route_table_size) {
+                index_wifi = my_route_table_size - 1;
+                ESP_LOGW("TABLE", "Add -- index: %d --> addr: "
+                        MACSTR, index_wifi, MAC2STR(my_route_table[index_wifi].addr));
+                char index[7];
+                sprintf(index, "%d", index_wifi);
+                create_message_rapid("N", index, "0", 1); // 0 as remove
+            }
         }
             break;
         case MESH_EVENT_NO_PARENT_FOUND: {
@@ -621,7 +587,7 @@ void my_wifi_init() {
     ESP_ERROR_CHECK(esp_event_handler_register(MESH_EVENT, ESP_EVENT_ANY_ID, &mesh_event_handler, NULL));
     ESP_ERROR_CHECK(esp_mesh_set_max_layer(CONFIG_MESH_MAX_LAYER));
     ESP_ERROR_CHECK(esp_mesh_set_vote_percentage(1));
-    ESP_ERROR_CHECK(esp_mesh_set_ap_assoc_expire(10));
+    ESP_ERROR_CHECK(esp_mesh_set_ap_assoc_expire(30));
     mesh_cfg_t cfg = MESH_INIT_CONFIG_DEFAULT();
     /* mesh ID */
     memcpy((uint8_t *) &cfg.mesh_id, MESH_ID, 6);
@@ -632,7 +598,7 @@ void my_wifi_init() {
     memcpy((uint8_t *) &cfg.router.password, CONFIG_MESH_ROUTER_PASSWD,
            strlen(CONFIG_MESH_ROUTER_PASSWD));
     /* mesh softAP */
-    ESP_ERROR_CHECK(esp_mesh_set_ap_authmode(CONFIG_MESH_AP_AUTHMODE));
+    ESP_ERROR_CHECK(esp_mesh_set_ap_authmode(CONFIG_MESH_AP_AUTHMODE6));
     cfg.mesh_ap.max_connection = CONFIG_MESH_AP_CONNECTIONS;
     memcpy((uint8_t *) &cfg.mesh_ap.password, CONFIG_MESH_AP_PASSWD,
            strlen(CONFIG_MESH_AP_PASSWD));
@@ -662,7 +628,8 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
                                              esp_ble_mesh_prov_cb_param_t *param) {
     switch (event) {
         case ESP_BLE_MESH_PROV_REGISTER_COMP_EVT:
-            ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_PROV_REGISTER_COMP_EVT, err_code %d", param->prov_register_comp.err_code);
+            ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_PROV_REGISTER_COMP_EVT, err_code %d",
+                     param->prov_register_comp.err_code);
             break;
         case ESP_BLE_MESH_NODE_PROV_ENABLE_COMP_EVT:
             ESP_LOGI(TAG_BLE, "ESP_BLE_MESH_NODE_PROV_ENABLE_COMP_EVT, err_code %d",
@@ -718,7 +685,7 @@ void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_r
     }
     char level_c[7];
     sprintf(level_c, "%d", level);
-    create_message_rapid("S", level_c, "3");
+    create_message_rapid("S", level_c, "3", 1);
     queue_operation('a', 'b', level);
 }
 
@@ -740,14 +707,14 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 sprintf(level, "%d", param->status_cb.level_status.present_level);
                 sprintf(ttl, "%d", param->params->ctx.recv_ttl);
                 // TODO [Emilio] scrittura su seriale
-                //create_message_rapid("R", level, ttl);
+                //create_message_rapid("R", level, ttl,1);
                 //update_queue_ble(param->status_cb.level_status.present_level);
             } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
                 char info_level[7];
                 sprintf(info_level, "%d", my_info_level);
                 // TODO [Emilio] commentata scrittua su seriale
-                create_message_rapid("E", info_level, "0");
-                send_mex_wifi(my_info_level);
+                create_message_rapid("E", info_level, "0", 1);
+                // send_mex_wifi(my_info_level);
             }
             //ESP_LOGI(TAG_BLE, "--- SET_STATE_EVT 0x%x", param->params->opcode);
             break;
@@ -758,7 +725,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             sprintf(level, "%d", param->status_cb.level_status.present_level);
             sprintf(ttl, "%d", param->params->ctx.recv_ttl);
             // TODO [Emilio] commentata scrittua su seriale
-            create_message_rapid("R", level, ttl);
+            create_message_rapid("R", level, ttl, 1);
             queue_operation('d', 'b', param->status_cb.level_status.present_level);
             break;
         }

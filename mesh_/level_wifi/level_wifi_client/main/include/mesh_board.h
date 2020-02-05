@@ -21,10 +21,6 @@
 #define ECHO_TEST_TXD (GPIO_NUM_23)
 #define ECHO_TEST_RXD (GPIO_NUM_22)
 
-#define  MESH_TOKEN_ID       (0x0)
-#define  MESH_TOKEN_VALUE    (0xbeef)
-#define  MESH_CONTROL_CMD    (0x2)
-
 /*******************************************************
  *                Type Definitions
  *******************************************************/
@@ -33,13 +29,6 @@
 /*******************************************************
  *                Structures
  *******************************************************/
-typedef struct {
-    uint8_t cmd;
-    bool on;
-    uint8_t token_id;
-    uint16_t token_value;
-} mesh_light_ctl_t;
-
 struct _led_state {
     uint8_t current;
     uint8_t previous;
@@ -56,8 +45,6 @@ struct _led_state {
  *******************************************************/
 esp_err_t mesh_light_init(void);
 
-esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len);
-
 void mesh_connected_indicator(int layer);
 
 void mesh_disconnected_indicator(void);
@@ -68,7 +55,7 @@ void uart_init(void);
 
 void uart_trasmitting(const char *test_str);
 
-void create_message_rapid(char *status, char *level, char *ttl);
+void create_message_rapid(char *status, char *level, char *ttl, uint8_t show_log);
 
 char **str_split(char *a_str, char a_delim);
 
@@ -81,5 +68,7 @@ void command_received(char **tokens, int count);
 void update_delay_buffer(int key);
 
 void queue_operation(char operation, char tech, int key);
+
+void create_new_task_wifi();
 
 #endif //_MESH_BOARD_H_

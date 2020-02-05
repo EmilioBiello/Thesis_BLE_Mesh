@@ -35,7 +35,7 @@ menu "Example Configuration"
             bool "WIFI_AUTH_WPA_WPA2_PSK"
     endchoice
 
-    config MESH_AP_AUTHMODE
+    config MESH_AP_AUTHMODE6
         int
         default 0 if WIFI_AUTH_OPEN
         default 2 if WIFI_AUTH_WPA_PSK

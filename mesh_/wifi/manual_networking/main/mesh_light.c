@@ -8,20 +8,20 @@
 */
 
 #include <string.h>
+#include <esp_log.h>
 #include "esp_err.h"
 #include "esp_mesh.h"
-#include "mesh_light.h"
+#include "include/mesh_light.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 
 /*******************************************************
  *                Constants
  *******************************************************/
-/* RGB configuration on ESP-WROVER-KIT board */
-#define LEDC_IO_0    (0)
-#define LEDC_IO_1    (2)
-#define LEDC_IO_2    (4)
-#define LEDC_IO_3    (5)
+struct _led_state led_state[2] = {
+        {LED_OFF, LED_OFF, LED_BLE,   "ble"},
+        {LED_OFF, LED_OFF, LED_BLE_1, "ble_1"},
+};
 
 /*******************************************************
  *                Variable Definitions
@@ -31,151 +31,85 @@ static bool s_light_inited = false;
 /*******************************************************
  *                Function Definitions
  *******************************************************/
-esp_err_t mesh_light_init(void)
-{
+void test_led();
+
+esp_err_t mesh_light_init(void) {
     if (s_light_inited == true) {
         return ESP_OK;
     }
     s_light_inited = true;
 
-    ledc_timer_config_t ledc_timer = {
-        .duty_resolution = LEDC_TIMER_13_BIT,
-        .freq_hz = 5000,
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .timer_num = LEDC_TIMER_0,
-        .clk_cfg = LEDC_AUTO_CLK,
-    };
-    ledc_timer_config(&ledc_timer);
+    gpio_pad_select_gpio(LED_WIFI);
+    gpio_set_direction(LED_WIFI, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_WIFI, LED_OFF);
 
-    ledc_channel_config_t ledc_channel = {
-        .channel = LEDC_CHANNEL_0,
-        .duty = 100,
-        .gpio_num = LEDC_IO_0,
-        .intr_type = LEDC_INTR_FADE_END,
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .timer_sel = LEDC_TIMER_0
-    };
-    ledc_channel_config(&ledc_channel);
-    ledc_channel.channel = LEDC_CHANNEL_1;
-    ledc_channel.gpio_num = LEDC_IO_1;
-    ledc_channel_config(&ledc_channel);
-    ledc_channel.channel = LEDC_CHANNEL_2;
-    ledc_channel.gpio_num = LEDC_IO_2;
-    ledc_channel_config(&ledc_channel);
-    ledc_channel.channel = LEDC_CHANNEL_3;
-    ledc_channel.gpio_num = LEDC_IO_3;
-    ledc_channel_config(&ledc_channel);
-    ledc_fade_func_install(0);
+    gpio_pad_select_gpio(LED_BLE);
+    gpio_set_direction(LED_BLE, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_BLE, LED_OFF);
 
-    mesh_light_set(MESH_LIGHT_INIT);
+    gpio_pad_select_gpio(LED_BLE_1);
+    gpio_set_direction(LED_BLE_1, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_BLE_1, LED_OFF);
+    test_led();
     return ESP_OK;
 }
 
-esp_err_t mesh_light_set(int color)
-{
-    switch (color) {
-    case MESH_LIGHT_RED:
-        /* Red */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 0);
-        break;
-    case MESH_LIGHT_GREEN:
-        /* Green */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 0);
-        break;
-    case MESH_LIGHT_BLUE:
-        /* Blue */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 3000);
-        break;
-    case MESH_LIGHT_YELLOW:
-        /* Yellow */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 0);
-        break;
-    case MESH_LIGHT_PINK:
-        /* Pink */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 3000);
-        break;
-    case MESH_LIGHT_INIT:
-        /* can't say */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 3000);
-        break;
-    case MESH_LIGHT_WARNING:
-        /* warning */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 3000);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 3000);
-        break;
-    default:
-        /* off */
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, 0);
-    }
+void test_led() {
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    gpio_set_level(LED_WIFI, LED_ON);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(LED_BLE, LED_ON);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(LED_BLE_1, LED_ON);
 
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2);
-
-    return ESP_OK;
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    gpio_set_level(LED_WIFI, LED_OFF);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(LED_BLE, LED_OFF);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(LED_BLE_1, LED_OFF);
 }
 
-void mesh_connected_indicator(int layer)
-{
-    switch (layer) {
-    case 1:
-        mesh_light_set(MESH_LIGHT_PINK);
-        break;
-    case 2:
-        mesh_light_set(MESH_LIGHT_YELLOW);
-        break;
-    case 3:
-        mesh_light_set(MESH_LIGHT_RED);
-        break;
-    case 4:
-        mesh_light_set(MESH_LIGHT_BLUE);
-        break;
-    case 5:
-        mesh_light_set(MESH_LIGHT_GREEN);
-        break;
-    case 6:
-        mesh_light_set(MESH_LIGHT_WARNING);
-        break;
-    default:
-        mesh_light_set(0);
+void mesh_connected_indicator(int layer) {
+    for (int i = 0; i < layer; ++i) {
+        gpio_set_level(LED_WIFI, LED_ON);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+
+        gpio_set_level(LED_WIFI, LED_OFF);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
+    ESP_LOGW("LIGHT", "Warning Light --- mesh_connected_indicator\n");
 }
 
-void mesh_disconnected_indicator(void)
-{
-    mesh_light_set(MESH_LIGHT_WARNING);
+void mesh_disconnected_indicator(void) {
+    for (int i = 0; i < 2; ++i) {
+        gpio_set_level(LED_WIFI, LED_ON);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+
+        gpio_set_level(LED_WIFI, LED_OFF);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+    ESP_LOGW("LIGHT", "Warning Light --- mesh_disconnected_indicator\n");
 }
 
-esp_err_t mesh_light_process(mesh_addr_t *from, uint8_t *buf, uint16_t len)
-{
-    mesh_light_ctl_t *in = (mesh_light_ctl_t *) buf;
-    if (!from || !buf || len < sizeof(mesh_light_ctl_t)) {
-        return ESP_FAIL;
-    }
-    if (in->token_id != MESH_TOKEN_ID || in->token_value != MESH_TOKEN_VALUE) {
-        return ESP_FAIL;
-    }
-    if (in->cmd == MESH_CONTROL_CMD) {
-        if (in->on) {
-            mesh_connected_indicator(esp_mesh_get_layer());
-        } else {
-            mesh_light_set(0);
+void board_led_operation_wifi(uint8_t status_led) {
+    gpio_set_level(LED_BLE, status_led);
+}
+
+void board_led_operation(uint8_t pin, uint8_t status_led) {
+    for (int i = 0; i < 2; i++) {
+        if (led_state[i].pin != pin) {
+            continue;
         }
+        if (status_led == led_state[i].previous) {
+            ESP_LOGW("BLE", "led %s is already %s",
+                     led_state[i].name, (status_led ? "on" : "off"));
+            return;
+        }
+        gpio_set_level(pin, status_led);
+        led_state[i].previous = status_led;
+        return;
     }
-    return ESP_OK;
+
+    ESP_LOGE("BLE", "LED is not found!");
 }
