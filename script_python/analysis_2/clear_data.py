@@ -4,7 +4,7 @@ import emilio_function as my
 
 # TODO cambiare gli indici [index_1 -> topic, index_2 -> delay]
 index_topic = 2  # 0..2
-index_delay = 6  # 0..6
+index_delay = 2  # 0..6
 ################################################################
 topic = [0, 1, 2]
 delay = [50, 100, 150, 200, 250, 500, 1000]
@@ -56,12 +56,18 @@ def analysis(dataset, start_, end_, run):
             if 'wifi' in v:
                 received_wifi += 1
 
+    if len(list_ble) != total_mex:
+        if len(list_ble) - total_mex == 1:
+            list_ble.remove(max(list_ble))
+            print("\x1b[1;32;40m new_max: {}\x1b[0m".format(max(list_ble)))
+
     lost_ble = len(list_ble) - received_ble
     lost_wifi = len(list_wifi) - received_wifi
     outcome = {'ble': {'lower': min(list_ble), 'upper': max(list_ble), 'sent': len(list_ble), 'received': received_ble,
                        'lost': lost_ble},
                'wifi': {'lower': min(list_wifi), 'upper': max(list_wifi), 'sent': len(list_wifi),
-                        'received': received_wifi, 'lost': lost_wifi}}
+                        'received': received_wifi, 'lost': lost_wifi},
+               'time': {}}
     if len(list_ble) != total_mex:
         print('\x1b[1;31;40m' + "Errore rimozione:[" + str(run) + "] " + str(len(list_ble)) + " --> " + str(
             mex_removed) + '\x1b[0m')
@@ -107,14 +113,20 @@ def main():
         data = my.open_file_and_return_data(path=item)
         print("\x1b[1;30;43m " + item[28:] + " \x1b[0m ")
         start = dt.datetime.strptime(data_delay[str(i)]['_info']['start'], '%Y-%m-%d %H:%M:%S.%f')
-        start = start + dt.timedelta(0, 15)
-        end_2 = start + dt.timedelta(0, 240)
-        # end = dt.datetime.strptime(data_delay[str(i)]['_info']['end_sent'], '%Y-%m-%d %H:%M:%S.%f')
+        end = dt.datetime.strptime(data_delay[str(i)]['_info']['end_sent'], '%Y-%m-%d %H:%M:%S.%f')
+        # TODO shift focus about data --- duration 4 minute
+        new_start = start + dt.timedelta(0, 40)  # right shift --> default 40 s
+        new_end = new_start + dt.timedelta(0, 240)
         # end = end - dt.timedelta(0, 15)
-        diff = end_2 - start
-        h, m, s = my.convert_timedelta(diff)
-        print("start: {} -- end: {} --- {}:{}.{}".format(start, end_2, h, m, s))
-        fault, outcome = analysis(data, start, end_2, i)
+        new_diff = new_end - new_start
+        h, m, s = my.convert_timedelta(new_diff)
+        fault, outcome = analysis(data, new_start, new_end, i)
+        print("start: {} -- end: {} --- {}:{}.{} -- min: {} -- max: {}".format(new_start, new_end, h, m, s,
+                                                                               outcome['ble']['lower'],
+                                                                               outcome['ble']['upper']))
+        time = str(h) + ":" + str(m) + "." + str(s) + " [h:m.s]"
+        outcome['time'] = {'old_start': start, 'old_end': end, 'new_start': new_start, 'new_end': new_end,
+                           'new_time': time}
         err.append(fault)
         dictionaries[i] = outcome
         i += 1

@@ -1,21 +1,22 @@
 import emilio_function as my
-import datetime as dt
 import glob
 import time
 import xlsxwriter
-import numpy as np
-import matplotlib.pyplot as plt
 import sys
 
 # TODO cambiare gli indici [index_1 -> topic, index_2 -> delay]
-index_topic = 2  # 0..2
+approach = 1  # 0 -> normal, 1-> cuts
+index_relay = 2  # 0..2
 ################################################################
-topic = [0, 1, 2]
-delay = [50, 75, 100, 125, 150, 200, 250, 500, 1000]
-type = ['ble', 'wifi']
+relay = [0, 1, 2]
+# delay = [50, 75, 100, 125, 150, 200, 250, 500, 1000]
+delay = [50, 100, 150, 200, 250, 500, 1000]
+type = ['ble', 'wifi', 'combine']
 path_media = "/media/emilio/BLE/"
-source_path = my.path_media + "json_file/relay_" + str(topic[index_topic]) + "/outcomes/delay_*.json"
-outcome_path = my.path_media + "json_file/relay_" + str(topic[index_topic]) + "/outcomes/"
+source_path = my.path_media + "json_file/relay_" + str(relay[index_relay]) + "/outcomes/delay_*.json"
+source_path_2 = my.path_media + "json_file/relay_" + str(
+    relay[index_relay]) + "/outcomes/cuts/delay_X_*.json"  # TODO value cut
+outcome_path = my.path_media + "json_file/relay_" + str(relay[index_relay]) + "/outcomes/cuts/"
 
 
 def get_info_from_data(data, info):
@@ -32,7 +33,7 @@ def get_info_from_data(data, info):
 
 
 def save_xlsx(dataset):
-    filename = outcome_path + "relay_" + str(topic[index_topic]) + ".xlsx"
+    filename = outcome_path + "relay_" + str(relay[index_relay]) + ".xlsx"
     workbook = xlsxwriter.Workbook(filename=filename)
 
     # Add a bold format to use to highlight cells.
@@ -41,7 +42,7 @@ def save_xlsx(dataset):
     cell_format = workbook.add_format({'bold': True, 'font_color': 'red'})
     cell_format.set_center_across()
 
-    worksheet = workbook.add_worksheet(name="Relay_" + str(topic[index_topic]))
+    worksheet = workbook.add_worksheet(name="Relay_" + str(relay[index_relay]))
     row = 0
     for i in range(6):
         if i == 5:
@@ -67,7 +68,7 @@ def save_xlsx(dataset):
             worksheet.write(row + 1, col + 10, "Received", bold)
             worksheet.write(row + 1, col + 11, "Lost", bold)
             worksheet.write(row + 1, col + 12, "Not_Sent", bold)
-            col = 14
+            col = col + 14
 
         row = row + 2
         for d in delay:
@@ -86,7 +87,7 @@ def save_xlsx(dataset):
                 worksheet.write(row, col + 10, dataset[d][t]['received'][i])
                 worksheet.write(row, col + 11, dataset[d][t]['lost'][i])
                 worksheet.write(row, col + 12, dataset[d][t]['not_sent'][i])
-                col = 14
+                col = col + 14
             row = row + 1
 
     print("\x1b[1;32;40m Saving {}\x1b[0m".format(filename))
@@ -94,7 +95,10 @@ def save_xlsx(dataset):
 
 
 def main():
-    list_of_files = glob.glob(source_path)
+    if approach:
+        list_of_files = glob.glob(source_path_2)
+    else:
+        list_of_files = glob.glob(source_path)
 
     data_info = dict()
     for name in sorted(list_of_files):
@@ -118,6 +122,18 @@ def main():
                 'not_sent': [],
             },
             'wifi': {
+                'latency': [],
+                'goodput': [],
+                'pdr': [],
+                'm_e': [],
+                'upper': [],
+                'lower': [],
+                'sent': [],
+                'received': [],
+                'lost': [],
+                'not_sent': [],
+            },
+            'combine': {
                 'latency': [],
                 'goodput': [],
                 'pdr': [],

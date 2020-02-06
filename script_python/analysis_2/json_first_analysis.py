@@ -2,12 +2,11 @@ import emilio_function as my
 import datetime as dt
 import glob
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 
 # TODO cambiare gli indici [index_1 -> topic, index_2 -> delay]
-index_topic = 0  # 0..2
-index_delay = 0  # 0..8
+index_topic = 2  # 0..2
+index_delay = 4  # 0..8
 ################################################################
 topic = [0, 1, 2]
 delay = [50, 75, 100, 125, 150, 200, 250, 500, 1000]
@@ -16,39 +15,13 @@ source_path = my.path_media + "json_file/relay_" + str(topic[index_topic]) + "/d
 outcome_path = my.path_media + "json_file/relay_" + str(topic[index_topic]) + "/outcomes/"
 
 # Variabili globali
-medie_ble = dict()
-dev_standard_ble = dict()
-margine_errore_ble = dict()
-medie_wifi = dict()
-dev_standard_wifi = dict()
-margine_errore_wifi = dict()
-
 my_dictionary = dict()
-
-
-###################################
-# TODO STATISTICS
-##################################
-def intervalli_di_confidenza(dataset):
-    # Intervallo di Confidenza al 95%
-    # FORMULA: Za/2*q/sqrt(n)
-    mean = np.mean(dataset)
-    std = np.std(dataset)
-    sample_size = len(dataset)
-    quantile = 1.96
-    margine_errore = quantile * (std / np.sqrt(sample_size))
-    value_1 = mean - margine_errore
-    value_2 = mean + margine_errore
-
-    return mean, std, margine_errore, value_1, value_2
 
 
 def statistics(data, run):
     mex = data['_mex']
     latency_ble = dict()
-    l_ble = list()
     latency_wifi = dict()
-    l_wifi = list()
     waits = dict()
 
     for index, list_of_value in mex.items():
@@ -56,15 +29,15 @@ def statistics(data, run):
             if 'ble' in v or 'wifi' in v:
                 if 'ble' in v:
                     latency_ble[int(index)] = v['ble']['latency']
-                    l_ble.append(v['ble']['latency'])
                 if 'wifi' in v:
                     latency_wifi[int(index)] = v['wifi']['latency']
-                    l_wifi.append(v['wifi']['latency'])
                 if 'wait' in v:
                     waits[int(index)] = v['wait']['wait']
 
-    mean_ble, std_ble, error_margin_ble, min_ble, max_ble = intervalli_di_confidenza(dataset=l_ble)
-    mean_wifi, std_wifi, error_margin_wifi, min_wifi, max_wifi = intervalli_di_confidenza(dataset=l_wifi)
+    l_ble = list(latency_ble.values())
+    l_wifi = list(latency_wifi.values())
+    ble_ = my.intervalli_di_confidenza(dataset=l_ble)
+    wifi_ = my.intervalli_di_confidenza(dataset=l_wifi)
 
     start_test = dt.datetime.strptime(data['_info']['start'], '%Y-%m-%d %H:%M:%S.%f')
     end_test = dt.datetime.strptime(data['_info']['end_test'], '%Y-%m-%d %H:%M:%S.%f')
@@ -84,13 +57,6 @@ def statistics(data, run):
     goodput_wifi = (data['_info_2']['mex_']['wifi'][
                         'receive_wifi'] * 2) / time_test.total_seconds()  # 2 byte di dati utili
 
-    medie_ble[run] = mean_ble
-    dev_standard_ble[run] = std_ble
-    margine_errore_ble[run] = error_margin_ble
-    medie_wifi[run] = mean_wifi
-    dev_standard_wifi[run] = std_wifi
-    margine_errore_wifi[run] = error_margin_wifi
-
     # TODO Save data about LATENCY, PDR, GOODPUT
     m = data['_info_2']['mex_']
     my_dictionary[str(run)] = {'_info': data['_info'],
@@ -105,19 +71,19 @@ def statistics(data, run):
                                'statistic_': {'ble': {'sample_size': len(l_ble),
                                                       'pdr': pdr_ble,
                                                       'goodput': goodput_ble,
-                                                      'latency': {'mean': mean_ble, 'std': std_ble,
-                                                                  'error_margin': error_margin_ble,
-                                                                  'lower': min_ble,
-                                                                  'upper': max_ble, 'min_value': np.min(l_ble),
+                                                      'latency': {'mean': ble_['mean'], 'std': ble_['std'],
+                                                                  'error_margin': ble_['e_m'],
+                                                                  'lower': ble_['low'],
+                                                                  'upper': ble_['up'], 'min_value': np.min(l_ble),
                                                                   'max_value': np.max(l_ble)
                                                                   }},
                                               'wifi': {'sample_size': len(l_wifi),
                                                        'pdr': pdr_wifi,
                                                        'goodput': goodput_wifi,
-                                                       'latency': {'mean': mean_wifi, 'std': std_wifi,
-                                                                   'error_margin': error_margin_wifi,
-                                                                   'lower': min_wifi,
-                                                                   'upper': max_wifi, 'min_value': np.min(l_wifi),
+                                                       'latency': {'mean': wifi_['mean'], 'std': wifi_['std'],
+                                                                   'error_margin': wifi_['e_m'],
+                                                                   'lower': wifi_['low'],
+                                                                   'upper': wifi_['up'], 'min_value': np.min(l_wifi),
                                                                    'max_value': np.max(l_wifi)
                                                                    }}}}
     return latency_ble, latency_wifi
@@ -221,54 +187,6 @@ def summary_statistics():
                                             }}}}
 
 
-###################################
-# TODO PLOT
-##################################
-def plot_latency(dataset, run, type):
-    if type == 'ble':
-        if run == 1:
-            color = "green"
-        elif run == 2:
-            color = "red"
-        elif run == 3:
-            color = "blue"
-        elif run == 4:
-            color = "orange"
-        elif run == 5:
-            color = "purple"
-        else:
-            color = "black"
-    else:
-        if run == 1:
-            color = "tab:green"
-        elif run == 2:
-            color = "tab:red"
-        elif run == 3:
-            color = "tab:blue"
-        elif run == 4:
-            color = "tab:orange"
-        elif run == 5:
-            color = "tab:purple"
-        else:
-            color = "tab:black"
-
-    text = type + " - run " + str(run)
-    plt.scatter(dataset.keys(), dataset.values(), label=text, color=color, s=5)
-
-
-def save_plot(type):
-    title_str = "Relay_" + str(topic[index_topic]) + " Delay_" + str(delay[index_delay]) + "ms [" + type + "]"
-    plt.title(title_str)
-    plt.xlabel('x - packets')
-    plt.ylabel('y - latency [seconds]')
-    plt.legend()
-
-    path_graph = outcome_path + "latencies_" + str(delay[index_delay]) + "_" + type + ".png"
-    print("\x1b[1;32;40m Saving Graph {}: {}\x1b[0m".format(type, path_graph))
-    plt.savefig(path_graph)
-    plt.show()
-
-
 def save_statistics_data():
     path_json = outcome_path + "delay_" + str(delay[index_delay]) + ".json"
     my.save_json_data_2(path=path_json, data=my_dictionary)
@@ -292,17 +210,20 @@ def main():
 
     # Summary
     summary_statistics()
-    # save_statistics_data()
+    save_statistics_data()
 
-    # PLOT BLE
-    for k, v in my_list_ble.items():
-        plot_latency(dataset=v, run=k, type='ble')
-    save_plot(type='ble')
-
-    # PLOT WIFI
-    for k, v in my_list_wifi.items():
-        plot_latency(dataset=v, run=k, type='wifi')
-    save_plot(type='wifi')
+    # PLOT
+    types = ['ble', 'wifi']
+    for tech in types:
+        if tech == 'ble':
+            my_list = my_list_ble
+        else:
+            my_list = my_list_wifi
+        for k, v in my_list.items():
+            my.plot_latency(dataset=v, run=k, type=tech)
+        title_str = "Relay_" + str(topic[index_topic]) + " Delay_" + str(delay[index_delay]) + "ms [" + str(tech) + "]"
+        path_graph = outcome_path + "latencies_" + str(delay[index_delay]) + "_" + str(tech) + ".png"
+        my.save_plot(type=tech, title_str=title_str, path_graph=path_graph)
 
 
 if __name__ == "__main__":
@@ -310,4 +231,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(e)
-    sys.exit()
+sys.exit()

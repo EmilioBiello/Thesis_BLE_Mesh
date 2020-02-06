@@ -4,6 +4,8 @@ import glob
 import os
 import re
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
 
 path_media = "/media/emilio/BLE/"
 
@@ -163,3 +165,79 @@ def get_argument():
     else:
         print("Correct path!")
         return "./" + str(sys.argv[1])
+
+
+###################################
+# TODO STATISTICS
+##################################
+def intervalli_di_confidenza(dataset):
+    # Intervallo di Confidenza al 95%
+    # FORMULA: Za/2*q/sqrt(n)
+    mean = np.mean(dataset)
+    std = np.std(dataset)
+    sample_size = len(dataset)
+    quantile = 1.96
+    margine_errore = quantile * (std / np.sqrt(sample_size))
+    value_1 = mean - margine_errore
+    value_2 = mean + margine_errore
+
+    value = {'mean': mean, 'std': std, 'e_m': margine_errore, 'low': value_1, 'up': value_2}
+    return value
+
+
+###################################
+# TODO PLOT
+##################################
+def plot_latency(dataset, run, type):
+    if type == 'ble':
+        if run == 1:
+            color = "green"
+        elif run == 2:
+            color = "red"
+        elif run == 3:
+            color = "blue"
+        elif run == 4:
+            color = "orange"
+        elif run == 5:
+            color = "purple"
+        else:
+            color = "black"
+    else:
+        if run == 1:
+            color = "tab:green"
+        elif run == 2:
+            color = "tab:red"
+        elif run == 3:
+            color = "tab:blue"
+        elif run == 4:
+            color = "tab:orange"
+        elif run == 5:
+            color = "tab:purple"
+        else:
+            color = "tab:black"
+
+    text = type + " - run " + str(run)
+    plt.scatter(dataset.keys(), dataset.values(), label=text, color=color, s=5)
+
+
+# def save_plot(type):
+#     title_str = "Relay_" + str(topic[index_topic]) + " Delay_" + str(delay[index_delay]) + "ms [" + type + "]"
+#     plt.title(title_str)
+#     plt.xlabel('x - packets')
+#     plt.ylabel('y - latency [seconds]')
+#     plt.legend()
+#
+#     path_graph = outcome_path + "latencies_" + str(delay[index_delay]) + "_" + type + ".png"
+#     print("\x1b[1;32;40m Saving Graph {}: {}\x1b[0m".format(type, path_graph))
+#     plt.savefig(path_graph)
+#     plt.show()
+
+def save_plot(type, title_str, path_graph):
+    plt.title(title_str)
+    plt.xlabel('x - packets')
+    plt.ylabel('y - latency [seconds]')
+    plt.legend()
+
+    print("\x1b[1;32;40m Saving Graph {}: {}\x1b[0m".format(type, path_graph))
+    plt.savefig(path_graph)
+    plt.show()

@@ -6,10 +6,9 @@ import time
 import glob
 import sys
 
-relay = 0  # 0,1,2
 path_pc = "./"
 path_media = "/media/emilio/BLE/"
-file_name = "../json_file/test_2020_02_01/test_20_02_01-09_17_46.json"
+file_name = "../json_file/test_2020_01_31/test_20_01_31-10_28_15.json"
 path = path_pc + file_name
 
 preprocessing_path = file_name[:-5] + "_preprocessing.json"
@@ -210,12 +209,12 @@ def preprocessing(data):
             receive = dt.datetime.strptime(
                 word_info['receive_ble']['time'], '%Y-%m-%d %H:%M:%S.%f')
             difference = receive - sent
-            diff_ble.append(difference.total_seconds())
-            latency_ble.append(difference.total_seconds() / 2)
+            diff_ble.append(abs(difference.total_seconds()))
+            latency_ble.append(abs(difference.total_seconds()) / 2)
             info_statistic['sent_received'] += 1
             hash_json_data[k].append(
-                {'ble': {'send_time': sent, 'status_time': receive, 'difference': difference.total_seconds(),
-                         'latency': (difference.total_seconds() / 2)}})
+                {'ble': {'send_time': sent, 'status_time': receive, 'difference': abs(difference.total_seconds()),
+                         'latency': (abs(difference.total_seconds()) / 2)}})
         elif 'error_ble' in word_info:
             info_statistic['send_ble'] -= 1
         else:
@@ -228,12 +227,12 @@ def preprocessing(data):
                 receive = dt.datetime.strptime(
                     word_info['receive_wifi']['time'], '%Y-%m-%d %H:%M:%S.%f')
                 difference = receive - sent
-                diff_wifi.append(difference.total_seconds())
-                latency_wifi.append(difference.total_seconds() / 2)
+                diff_wifi.append(abs(difference.total_seconds()))
+                latency_wifi.append(abs(difference.total_seconds()) / 2)
                 info_statistic['sent_received'] += 1
                 hash_json_data[k].append(
-                    {'wifi': {'send_time': sent, 'status_time': receive, 'difference': difference.total_seconds(),
-                              'latency': (difference.total_seconds() / 2)}})
+                    {'wifi': {'send_time': sent, 'status_time': receive, 'difference': abs(difference.total_seconds()),
+                              'latency': (abs(difference.total_seconds()) / 2)}})
                 set_2.add(word_info['receive_wifi']['mex_id'])
             elif 'error_wifi' in word_info:
                 info_statistic['send_wifi'] -= 1
