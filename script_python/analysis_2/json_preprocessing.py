@@ -8,7 +8,7 @@ import sys
 
 path_pc = "./"
 path_media = "/media/emilio/BLE/"
-file_name = "../json_file/test_2020_01_31/test_20_01_31-10_28_15.json"
+file_name = "../json_file/test_2020_02_08/test_20_02_08-18_49_33.json"
 path = path_pc + file_name
 
 preprocessing_path = file_name[:-5] + "_preprocessing.json"
@@ -23,30 +23,27 @@ find_all_matches = "[S|R|E|I|O|W|T|F],[0-9]{1,5},[*|0-9]"
 
 def preprocessing(data):
     print("- {}".format(preprocessing.__name__))
-    my_time = list()
-    mex_correct = list()
     wrong_mex = dict()
+    time_change = list()
+    mex_correct = list()
     end_sent = ""
     for i, mex in enumerate(data['messages']):
+        string = mex['message_id']
+        string = string.split(',')
         if re.match(regular_expression_mex, mex['message_id']):
             # MEX string
-            string = mex['message_id']
-            string = string.split(',')
             mex_correct.append({'mex_id': int(
                 string[1]), 'type_mex': string[0], 'ttl': string[2], 'time': mex['time']})
         elif re.match(regular_expression_time, mex['message_id']):
             # DELAY check WIFI string
-            string = mex['message_id']
-            string = string.split(',')
-            my_time.append(
+            time_change.append(
                 {'type_mex': string[0], 'delay': int(string[1]), 'time': mex['time']})
         elif re.match(regular_expression_final, mex['message_id']):
             end_sent = {'type_mex': string[0], 'time': mex['time']}
         else:
             # wrong saving
             match = re.findall(find_all_matches, mex['message_id'])
-            wrong_mex[i] = {'datetime': mex['time'],
-                            'valid_mex_found': match, 'string': mex['message_id']}
+            wrong_mex[i] = {'datetime': mex['time'], 'valid_mex_found': match, 'string': mex['message_id']}
 
     new_wrong_mex = dict()
     for index in wrong_mex:
@@ -61,7 +58,7 @@ def preprocessing(data):
                         mex_correct.append(
                             {'mex_id': int(m1[1]), 'type_mex': m1[0], 'ttl': m1[2], 'time': datetime})
                     elif re.match(regular_expression_time, m):
-                        my_time.append(
+                        time_change.append(
                             {'type_mex': m1[0], 'delay': int(m1[1]), 'time': datetime})
                     elif re.match(regular_expression_final, m):
                         end_sent = {'type_mex': m1[0], 'time': datetime}
@@ -90,7 +87,7 @@ def preprocessing(data):
                         mex_correct.append(
                             {'mex_id': int(m1[1]), 'type_mex': m1[0], 'ttl': m1[2], 'time': time_list[i]})
                     elif re.match(regular_expression_time, m):
-                        my_time.append(
+                        time_change.append(
                             {'type_mex': m1[0], 'delay': int(m1[1]), 'time': time_list[i]})
                     elif re.match(regular_expression_final, m):
                         end_sent = {'type_mex': m1[0], 'time': time_list[i]}
@@ -119,27 +116,26 @@ def preprocessing(data):
                 mex_correct.append(
                     {'mex_id': int(m1[1]), 'type_mex': m1[0], 'ttl': m1[2], 'time': time_list[i]})
             elif re.match(regular_expression_time, m):
-                my_time.append(
+                time_change.append(
                     {'type_mex': m1[0], 'delay': int(m1[1]), 'time': time_list[i]})
             elif re.match(regular_expression_final, m):
                 end_sent = {'type_mex': m1[0], 'time': time_list[i]}
             i += 1
 
     # TODO Sort given list of dictionaries by date
-    mex_correct.sort(key=lambda x: dt.datetime.strptime(
-        x['time'], '%Y-%m-%d %H:%M:%S.%f'))
-    my_time.sort(key=lambda x: dt.datetime.strptime(
-        x['time'], '%Y-%m-%d %H:%M:%S.%f'))
+    mex_correct.sort(key=lambda x: dt.datetime.strptime(x['time'], '%Y-%m-%d %H:%M:%S.%f'))
+    time_change.sort(key=lambda x: dt.datetime.strptime(x['time'], '%Y-%m-%d %H:%M:%S.%f'))
 
     # PRINT MEX
-    start = dt.datetime.strptime(
-        mex_correct[0]['time'], '%Y-%m-%d %H:%M:%S.%f')
+    start = dt.datetime.strptime(mex_correct[0]['time'], '%Y-%m-%d %H:%M:%S.%f')
     end_sent_ = dt.datetime.strptime(end_sent['time'], '%Y-%m-%d %H:%M:%S.%f')
     end_test = dt.datetime.strptime(mex_correct[-1]['time'], '%Y-%m-%d %H:%M:%S.%f')
-    diff = end_test - start
+
     diff_ = end_sent_ - start
-    h1, m1, s1 = my.convert_timedelta(diff)
     h2, m2, s2 = my.convert_timedelta(diff_)
+    diff = end_test - start
+    h1, m1, s1 = my.convert_timedelta(diff)
+
     print("Start: {}".format(start))
     print("End_sent: {}".format(end_sent_))
     print("End_test: {}".format(end_test))
@@ -153,7 +149,7 @@ def preprocessing(data):
     my_data['_command'] = data['_command']
     my_data['_info'] = {'start': start, 'end_sent': end_sent_, 'end_test': end_test, 'time_send': t1, 'time_test': t2}
     my_data['_mex'] = mex_correct
-    my_data['_time'] = my_time
+    my_data['_time'] = time_change
 
     # TODO saving
     print("Saving Preprocessing File")
@@ -181,11 +177,12 @@ def preprocessing(data):
     diff_wifi = list()
     latency_wifi = list()
     hash_json_data = dict()
+    double = list()
     set_1 = set()
     set_2 = set()
     for k, v in hash_table.items():
         for i in v:
-            word_info, info_statistic = my.look_into_it(word_info, info_statistic, mex_correct[i])
+            word_info, info_statistic, double = my.look_into_it(word_info, info_statistic, mex_correct[i], double)
             if mex_correct[i]['type_mex'] == "O":
                 set_1.add(mex_correct[i]['mex_id'])
             if not k in hash_json_data:
@@ -196,24 +193,22 @@ def preprocessing(data):
             if not int(word_info['send_ble']['ttl']) == 3:
                 print(
                     '\x1b[1;31;40m' + ' Error analysis_ttl --> send_: ' + word_info['send_ble']['time'] + '\x1b[0m')
-                error_1.append(
-                    {'k': k, 'time': word_info['send_ble']['time']})
+                error_1.append({'k': k, 'time': word_info['send_ble']['time']})
             if not int(word_info['receive_ble']['ttl']) == ttl_receive:
                 print('\x1b[1;31;40m' + ' Error analysis_ttl --> receive_: ' +
                       word_info['receive_ble']['time'] + '\x1b[0m')
-                error_2.append(
-                    {'k': k, 'time': word_info['send_ble']['time']})
+                error_2.append({'k': k, 'time': word_info['send_ble']['time']})
 
             sent = dt.datetime.strptime(
                 word_info['send_ble']['time'], '%Y-%m-%d %H:%M:%S.%f')
-            receive = dt.datetime.strptime(
+            receive_wifi = dt.datetime.strptime(
                 word_info['receive_ble']['time'], '%Y-%m-%d %H:%M:%S.%f')
-            difference = receive - sent
+            difference = receive_wifi - sent
             diff_ble.append(abs(difference.total_seconds()))
             latency_ble.append(abs(difference.total_seconds()) / 2)
             info_statistic['sent_received'] += 1
             hash_json_data[k].append(
-                {'ble': {'send_time': sent, 'status_time': receive, 'difference': abs(difference.total_seconds()),
+                {'ble': {'send_time': sent, 'status_time': receive_wifi, 'difference': abs(difference.total_seconds()),
                          'latency': (abs(difference.total_seconds()) / 2)}})
         elif 'error_ble' in word_info:
             info_statistic['send_ble'] -= 1
@@ -224,14 +219,15 @@ def preprocessing(data):
             if 'receive_wifi' in word_info:
                 sent = dt.datetime.strptime(
                     word_info['send_wifi']['time'], '%Y-%m-%d %H:%M:%S.%f')
-                receive = dt.datetime.strptime(
+                receive_wifi = dt.datetime.strptime(
                     word_info['receive_wifi']['time'], '%Y-%m-%d %H:%M:%S.%f')
-                difference = receive - sent
+                difference = receive_wifi - sent
                 diff_wifi.append(abs(difference.total_seconds()))
                 latency_wifi.append(abs(difference.total_seconds()) / 2)
                 info_statistic['sent_received'] += 1
                 hash_json_data[k].append(
-                    {'wifi': {'send_time': sent, 'status_time': receive, 'difference': abs(difference.total_seconds()),
+                    {'wifi': {'send_time': sent, 'status_time': receive_wifi,
+                              'difference': abs(difference.total_seconds()),
                               'latency': (abs(difference.total_seconds()) / 2)}})
                 set_2.add(word_info['receive_wifi']['mex_id'])
             elif 'error_wifi' in word_info:
@@ -239,24 +235,40 @@ def preprocessing(data):
             else:
                 info_statistic['lost_wifi'] += 1
             # waiting
-            sent_1 = dt.datetime.strptime(
+            send_ble = dt.datetime.strptime(
                 word_info['send_ble']['time'], '%Y-%m-%d %H:%M:%S.%f')
-            sent_2 = dt.datetime.strptime(
+            send_wifi = dt.datetime.strptime(
                 word_info['send_wifi']['time'], '%Y-%m-%d %H:%M:%S.%f')
-            wait = sent_2 - sent_1
+            wait = abs(send_wifi - send_ble)
             list_wait.append(wait.total_seconds())
-            hash_json_data[k].append({'wait': {'send_ble': sent_1, 'send_wifi': sent_2, 'wait': wait.total_seconds()}})
+            if 'receive_wifi' in word_info:
+                receive_wifi = dt.datetime.strptime(word_info['receive_wifi']['time'], '%Y-%m-%d %H:%M:%S.%f')
+                diff_1 = (receive_wifi - send_ble).total_seconds() / 2
+                diff_2 = wait.total_seconds() + ((receive_wifi - send_wifi).total_seconds() / 2)
+                hash_json_data[k].append(
+                    {'ble_wifi': {'send_ble': send_ble, 'send_wifi': send_wifi, 'receive_wifi': receive_wifi,
+                                  'wait': wait.total_seconds(), 'latency_1': diff_1, 'latency_2': diff_2}})
+            else:
+                hash_json_data[k].append(
+                    {'ble_wifi': {'send_ble': send_ble, 'send_wifi': send_wifi, 'wait': wait.total_seconds()}})
+
         if 'receive_ble' in word_info and 'send_wifi' in word_info:
             info_statistic['double_sent'] += 1
         word_info.clear()
 
+    if len(double) != 0:
+        for k in double:
+            print(hash_json_data[k])
+        raise Exception('Indici Duplicati, esempio R,34,2 - R,34,1 --> Rimuovere R,34,2')
+
     print("---------------")
     print("[relay: {} -> ttl: {}]".format(data['_command']['relay'], ttl_receive))
-    print("Changing Delay: {}".format(len(my_time)))
+    print("Changing Delay: {}".format(len(time_change)))
     print("---------------")
+
     if len(error_1) > 0 or len(error_2) > 0:
         raise Exception('\x1b[1;31;40m' +
-                        ' Error TTL: sent: ' + len(error_1) + ' --> received: ' + len(error_2) + ' \x1b[0m')
+                        ' Error TTL: sent: ' + str(len(error_1)) + ' --> received: ' + str(len(error_2)) + ' \x1b[0m')
 
     print("Media DIff BLE: {}s".format(statistics.mean(diff_ble)))
     print("Media Latency BLE: {}s".format(statistics.mean(latency_ble)))
@@ -325,7 +337,7 @@ def call_preprocessing():
 def group_files():
     global preprocessing_path
     global analysis_path
-    list_of_files = glob.glob("./../json_file/test_2020_01_31/*.json")
+    list_of_files = glob.glob("./../json_file/test_2020_01_30/*.json")
     list_of_files.sort()
 
     for i in range(len(list_of_files)):

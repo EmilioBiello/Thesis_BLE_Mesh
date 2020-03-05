@@ -101,7 +101,7 @@ def get_grouped_files(source_path, delay, index_delay):
         data = open_file_and_return_data(name)
         if data['_command']['delay'] != delay[index_delay]:
             raise Exception(
-                "\x1b[1;31;40m File Error in this directory. [{}] --> {} ]\x1b[0m".format(delay[index_delay], name))
+                "\x1b[1;31;40m File Error in this directory. [{}] Different Delay --> {} ]\x1b[0m".format(delay[index_delay], name))
     return list_of_files
 
 
@@ -125,27 +125,30 @@ def look_into_element(e):
     return match, e['message_id'], send
 
 
-def look_into_it(word_info, info_s, e):
+def look_into_it(word_info, info_s, e, double):
     s = e['type_mex']
     my_type = ['send_ble', 'receive_ble', 'error_ble',
                'send_wifi', 'receive_wifi', 'error_wifi']
     if re.match("^[S]$", s):
-        index = 0
-    elif re.match("^[R]$", s):
-        index = 1
+        i_type = 0
+    elif re.match("^[R]$", s) or re.match("^[P]$", s):
+        i_type = 1
     elif re.match("^[E]$", s):
-        index = 2
+        i_type = 2
     elif re.match("^[I]$", s):
-        index = 3
+        i_type = 3
     elif re.match("^[O]$", s):
-        index = 4
+        i_type = 4
     elif re.match("^[W]$", s):
-        index = 5
-    if my_type[index] in word_info:
-        raise Exception("Double {} -> {}".format(my_type[index], e))
-    word_info[my_type[index]] = e
-    info_s[my_type[index]] += 1
-    return word_info, info_s
+        i_type = 5
+    else:
+        i_type = 6
+    if my_type[i_type] in word_info:
+        double.append(int(e['mex_id']))
+        # raise Exception("Double {} -> {}".format(my_type[i_type], e))
+    word_info[my_type[i_type]] = e
+    info_s[my_type[i_type]] += 1
+    return word_info, info_s, double
 
 
 def convert_timedelta(duration):
@@ -181,7 +184,7 @@ def intervalli_di_confidenza(dataset):
     value_1 = mean - margine_errore
     value_2 = mean + margine_errore
 
-    value = {'mean': mean, 'std': std, 'e_m': margine_errore, 'low': value_1, 'up': value_2}
+    value = {'mean': mean, 'std': std, 'm_e': margine_errore, 'low': value_1, 'up': value_2}
     return value
 
 
@@ -189,32 +192,18 @@ def intervalli_di_confidenza(dataset):
 # TODO PLOT
 ##################################
 def plot_latency(dataset, run, type):
-    if type == 'ble':
-        if run == 1:
-            color = "green"
-        elif run == 2:
-            color = "red"
-        elif run == 3:
-            color = "blue"
-        elif run == 4:
-            color = "orange"
-        elif run == 5:
-            color = "purple"
-        else:
-            color = "black"
+    if run == 1:
+        color = "tab:cyan"
+    elif run == 2:
+        color = "tab:red"
+    elif run == 3:
+        color = "tab:green"
+    elif run == 4:
+        color = "tab:blue"
+    elif run == 5:
+        color = "tab:orange"
     else:
-        if run == 1:
-            color = "tab:green"
-        elif run == 2:
-            color = "tab:red"
-        elif run == 3:
-            color = "tab:blue"
-        elif run == 4:
-            color = "tab:orange"
-        elif run == 5:
-            color = "tab:purple"
-        else:
-            color = "tab:black"
+        color = "tab:black"
 
     text = type + " - run " + str(run)
     plt.scatter(dataset.keys(), dataset.values(), label=text, color=color, s=5)
@@ -232,12 +221,32 @@ def plot_latency(dataset, run, type):
 #     plt.savefig(path_graph)
 #     plt.show()
 
-def save_plot(type, title_str, path_graph):
-    plt.title(title_str)
+def save_plot(type, title, path):
+    plt.title(title)
     plt.xlabel('x - packets')
     plt.ylabel('y - latency [seconds]')
     plt.legend()
 
-    print("\x1b[1;32;40m Saving Graph {}: {}\x1b[0m".format(type, path_graph))
-    plt.savefig(path_graph)
+    print("\x1b[1;32;40m Saving Graph {}: {}\x1b[0m".format(type, path))
+    plt.savefig(path)
+    plt.show()
+
+
+def save_plot_2(type, title, path, type_s):
+    if type_s == 'latency':
+        xlabel = 'x - packets'
+        ylabel = 'y - latency (s)'
+    elif type_s == 'time':
+        xlabel = 'x - update delay check queue about wifi mex'
+        ylabel = 'y - delay (s)'
+    else:
+        xlabel = 'x - '
+        ylabel = 'y - '
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend()
+
+    print("\x1b[1;32;40m Saving Graph {}: {}\x1b[0m".format(type, path))
+    plt.savefig(path)
     plt.show()

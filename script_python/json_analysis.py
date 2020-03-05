@@ -19,8 +19,8 @@ path_1 = path_media + file_name[:-5] + "_preprocessing.json"
 path_2 = path_media + file_name[:-5] + "_analysis.json"
 path_3 = path_media + file_name[:-5] + "_analysis_2.json"
 
-regular_expression_mex = "^[R|S|P|E],[0-9]{1,5},[0-9]$"
-find_all_matches = "[P|S|R|E],[0-9]{1,5},[0-9]"
+regular_expression_mex = "^[S|R|E],[0-9]{1,5},[0-9]$"
+find_all_matches = "[S|R|E],[0-9]{1,5},[0-9]"
 
 error_ttl = list()
 
