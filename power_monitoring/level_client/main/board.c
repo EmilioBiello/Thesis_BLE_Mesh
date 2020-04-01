@@ -84,4 +84,5 @@ void board_rule_init(){
 
 void board_init(void) {
     board_led_init();
+    // NON USO IL UART
 }

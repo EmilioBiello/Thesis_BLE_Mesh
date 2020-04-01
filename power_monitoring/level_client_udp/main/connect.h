@@ -4,6 +4,8 @@
 
 #ifndef LEVEL_CLIENT_UDP_CONNECT_H
 #define LEVEL_CLIENT_UDP_CONNECT_H
+
+#include <lwip/ip4_addr.h>
 #include "esp_err.h"
 
 /**
@@ -11,11 +13,11 @@
  *
  * @return ESP_OK on successful connection
  */
-esp_err_t example_connect(void);
+esp_err_t ESP_connect(void);
 
 /**
  * Counterpart to example_connect, de-initializes Wi-Fi or Ethernet
  */
-esp_err_t example_disconnect(void);
+esp_err_t ESP_disconnect(void);
 
 #endif //LEVEL_CLIENT_UDP_CONNECT_H

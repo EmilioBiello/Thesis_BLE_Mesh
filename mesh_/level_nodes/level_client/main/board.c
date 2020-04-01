@@ -25,7 +25,7 @@
 #define TXD_PIN (GPIO_NUM_23)
 #define RXD_PIN (GPIO_NUM_22)
 
-extern void send_message(uint16_t addr, uint32_t opcode, int16_t level, bool ack);
+extern void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel);
 
 extern void send_get_message(uint16_t addr);
 
@@ -36,7 +36,7 @@ struct Rule_Message {
     uint8_t addr_s;
     uint16_t delay_s;
     bool ack_s;
-} m1;
+} rule;
 
 struct Message_Set {
     uint8_t addr_s;
@@ -84,12 +84,12 @@ void uart_init() {
     uart_driver_install(UART_NUM_1, UART_BUF_SIZE * 2, 0, 0, NULL, 0);
 }
 
-void send_data_to_pc(const char *data) {
+void uart_trasmitting(const char *data) {
     const int len = strlen(data);
     uart_write_bytes(UART_NUM_1, data, len);
 }
 
-void create_message_rapid(char *opcode, char *level, char *ttl) {
+void event_reporting(char *opcode, char *level, char *ttl) {
     char *str3 = malloc(1 + 2 + strlen(opcode) + strlen(level) + strlen(opcode));// 1 end char; 1 for comma
 
     strcpy(str3, opcode);
@@ -98,7 +98,7 @@ void create_message_rapid(char *opcode, char *level, char *ttl) {
     strcat(str3, ",");
     strcat(str3, ttl);
 
-    send_data_to_pc(str3);
+    uart_trasmitting(str3);
     free(str3);
     if (strcmp(ttl, "0") == 0) {
         ESP_LOGE("PC", "[opcode: %s, level_error: %s ttl: %s]", opcode, level, ttl);
@@ -161,17 +161,19 @@ void execute_rule() {
     int16_t level = 1;
     char level_c[7];
 
-    const TickType_t xDelay = m1.delay_s / portTICK_PERIOD_MS;
-    printf("Start after first delay: %d --> delay loop: %d\n", m1.delay_s, xDelay);
+    const TickType_t xDelay = rule.delay_s / portTICK_PERIOD_MS;
+    printf("Start after first delay: %d --> delay loop: %d\n", rule.delay_s, xDelay);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    for (int i = 0; i < m1.n_mex_s; ++i) {
-        send_message(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level, m1.ack_s);
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    for (int i = 0; i < rule.n_mex_s; ++i) {
+        vTaskDelayUntil(&xLastWakeTime, xDelay);
+
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level, rule.ack_s);
         sprintf(level_c, "%d", level);
 
-        create_message_rapid("S", (char *) level_c, "3");
+        event_reporting("S", (char *) level_c, "3");
         level += 1;
-        vTaskDelay(xDelay); // delay is milliseconds
     }
 }
 
@@ -201,10 +203,10 @@ void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
             m2.ack_s = strtoul((const char *) t3_char[1], NULL, 2);
         }
     } else if (tokens0 == '&') {
-        m1.n_mex_s = strtoul((const char *) t1_char[1], NULL, 10);
-        m1.addr_s = strtoul((const char *) t2_char[1], NULL, 16);
-        m1.delay_s = strtoul((const char *) t3_char[1], NULL, 10);
-        m1.ack_s = 0;
+        rule.n_mex_s = strtoul((const char *) t1_char[1], NULL, 10);
+        rule.addr_s = strtoul((const char *) t2_char[1], NULL, 16);
+        rule.delay_s = strtoul((const char *) t3_char[1], NULL, 10);
+        rule.ack_s = 0;
     }
 
     free(t1_char);
@@ -227,11 +229,11 @@ void command_received(char **tokens, int count) {
                 printf("GET\n");
             } else if (count == 2) {
                 decoding_string('@', tokens[1], tokens[2], "unack");
-                send_message(m2.addr_s, m2.opcode_s, m2.level_s, false);
+                send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, false);
                 ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
             } else if (count == 3) {
                 decoding_string('@', tokens[1], tokens[2], tokens[3]);
-                send_message(m2.addr_s, m2.opcode_s, m2.level_s, m2.ack_s);
+                send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, m2.ack_s);
                 ESP_LOGI("SEND_MESSAGE", "SET");
             }
             printf("Single_mex\n");
@@ -239,9 +241,9 @@ void command_received(char **tokens, int count) {
 
         case '&':
             decoding_string('&', tokens[1], tokens[2], tokens[3]);
-            printf("n_mex: %hu\n", m1.n_mex_s);
-            printf("addr: %hhu\n", m1.addr_s);
-            printf("delay: %u\n", m1.delay_s);
+            printf("n_mex: %hu\n", rule.n_mex_s);
+            printf("addr: %hhu\n", rule.addr_s);
+            printf("delay: %u\n", rule.delay_s);
             execute_rule();
             printf("Rule\n");
             break;
@@ -282,7 +284,7 @@ static void uart_task(void *args) {
 /**
  * Init
  */
-void board_init(void) {
+void start_communication(void) {
     board_led_init();
 
     uart_init();

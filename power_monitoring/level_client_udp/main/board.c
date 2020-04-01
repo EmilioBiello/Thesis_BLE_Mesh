@@ -119,15 +119,16 @@ void create_socket() {
     dest_addr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(PORT);
+    inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+
     addr_family = AF_INET;
     ip_protocol = IPPROTO_IP;
-    inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
     while (1) {
         sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
             ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
         }
-        ESP_LOGI(TAG, "Socket created, sending to %s:%d", HOST_IP_ADDR, PORT);
+        ESP_LOGI(TAG, "Socket created.");
         break;
     }
     wifi_led(LED_WIFI, LED_OFF);
@@ -197,7 +198,7 @@ void board_init(void) {
     tcpip_adapter_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    ESP_ERROR_CHECK(example_connect());
+    ESP_ERROR_CHECK(ESP_connect());
 
     create_socket();
 

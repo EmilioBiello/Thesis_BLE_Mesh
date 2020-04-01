@@ -122,7 +122,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-void send_message(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) {
+void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) {
     esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
@@ -187,13 +187,13 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 char ttl[4];
                 sprintf(level, "%d", param->status_cb.level_status.present_level);
                 sprintf(ttl, "%d", param->params->ctx.recv_ttl);
-                create_message_rapid("R", level, ttl);
+                event_reporting("R", level, ttl);
                 ESP_LOGI("MessaggioRicevuto", "LEVEL_SET, level %d receive_ttl: %d",
                          param->status_cb.level_status.present_level, param->params->ctx.recv_ttl);
             } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
                 char info_level[7];
                 sprintf(info_level, "%d", my_info_level);
-                create_message_rapid("E", info_level, "0");
+                event_reporting("E", info_level, "0");
             }
             ESP_LOGI(TAG, "--- SET_STATE_EVT 0x%x", param->params->opcode);
             break;
@@ -203,7 +203,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             char ttl[4];
             sprintf(level, "%d", param->status_cb.level_status.present_level);
             sprintf(ttl, "%d", param->params->ctx.recv_ttl);
-            create_message_rapid("P", level, ttl);
+            event_reporting("P", level, ttl);
             break;
         }
         case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
@@ -284,7 +284,7 @@ void app_main(void) {
 
     ESP_LOGI(TAG, "Initializing...");
 
-    board_init();
+    start_communication();
 
     err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES) {

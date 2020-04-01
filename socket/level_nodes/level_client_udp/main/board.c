@@ -41,7 +41,7 @@ void command_received(char **tokens, int count);
 
 void update_delay_buffer(int key);
 
-void uart_trasmitting(const char *test_str);
+void uart_trasmitting(const char *event_s);
 
 struct _led_state led_array = {LED_OFF, LED_OFF, LED_BLE, "ble_mesh"};
 
@@ -72,7 +72,7 @@ struct Rule_Message {
     uint8_t addr_s;
     uint16_t delay_s;
     bool ack_s;
-} m1;
+} rule;
 
 struct Message_Set {
     uint8_t addr_s;
@@ -97,9 +97,9 @@ int received_wifi;
 int received_ble;
 int double_sent;
 int16_t level_sent = 1;
-double delay_buffer = 0;
-double delay_min_buff = 0;
-int delay_buff_init = 0;
+double threshold = 0;
+double threshold_min = 0;
+int threshold_max = 0;
 bool change_delay = false;
 char mystatus = '0';
 
@@ -162,25 +162,27 @@ void create_socket() {
     dest_addr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(PORT);
+    inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+
     addr_family = AF_INET;
     ip_protocol = IPPROTO_IP;
-    inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+
     while (1) {
         sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
             ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
         }
-        ESP_LOGI(TAG, "Socket created, sending to %s:%d", HOST_IP_ADDR, PORT);
+        ESP_LOGI(TAG, "Socket created, port: %d", PORT);
         is_running_wifi = true;
         break;
     }
     wifi_led(LED_WIFI, LED_OFF);
 }
 
-void re_send_mex() {
-    int front_value = get_front_mex(q_ble);
+void get_key_and_send_mex() {
+    int front_value = get_front_key(q_ble);
     if (front_value > 0) {
-        if ((level_sent - front_value) > (int) delay_buffer) {
+        if ((level_sent - front_value) > (int) threshold) {
             int value = deQueue(q_ble);
             send_mex_wifi(value);
             //ESP_LOGE("WIFI", "SEND WIFI_: %d --- BLE_: %d, delay: %d", value, level_sent, (int) delay_buffer);
@@ -193,9 +195,9 @@ void send_mex_wifi(int16_t value) {
     int err = sendto(sock, payload, strlen(payload), 0, (struct sockaddr *) &dest_addr, sizeof(dest_addr));
     if (err < 0) {
         ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-        create_message_rapid("W", payload, "*", 1);
+        event_reporting("W", payload, "*", 1);
     } else {
-        create_message_rapid("I", payload, "*", 1);
+        event_reporting("I", payload, "*", 1);
         queue_operation('a', 'w', value);
 //        queue_op_mixed('a', 'w', value);
     }
@@ -203,12 +205,12 @@ void send_mex_wifi(int16_t value) {
 
 static void udp_client_sent(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xDelay = m1.delay_s / portTICK_PERIOD_MS;
+    const TickType_t xDelay = rule.delay_s / portTICK_PERIOD_MS;
 
     while (is_running_rule) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        if (level_sent >= delay_buff_init) {
-            re_send_mex();
+        if (level_sent >= threshold_max) {
+            get_key_and_send_mex();
             if (!change_delay) {
                 change_delay = true;
             }
@@ -230,7 +232,7 @@ static void udp_client_receive(void *pvParameters) {
             ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
         } else {
             rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-            create_message_rapid("O", rx_buffer, "*", 1);
+            event_reporting("O", rx_buffer, "*", 1);
             queue_operation('d', 'w', (int) rx_buffer);
 //            queue_op_mixed('d', 'w', (int) rx_buffer);
         }
@@ -258,7 +260,7 @@ void queue_op_mixed(char operation, char tech, int key) {
         case 'd':
             // Remove mex from queue
             if (mystatus == '2' && tech == 'b') {
-                delete_node(q_ble, key);
+                remove_key(q_ble, key);
                 update_delay_buffer(key);
             }
             break;
@@ -288,7 +290,7 @@ void queue_operation(char operation, char tech, int key) {
             // Delete mex from queue
             if (is_running_rule) {
                 if (tech == 'b') {
-                    int value = delete_node(q_ble, key);
+                    int value = remove_key(q_ble, key);
                     if (value > 0) {
                         // ESP_LOGW("Q_BLE", "DELETE %d", key);
                         received_ble += 1;
@@ -316,15 +318,15 @@ void initialize_variables() {
     received_wifi = 0;
     received_ble = 0;
     double_sent = 0;
-    is_running_rule = false;
     change_delay = false;
     level_sent = 1;
-    delay_buffer = (40 * 1000) / m1.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
-    delay_min_buff = (1 * 1000) / m1.delay_s; // delay minimo 1 s
-    delay_buff_init = (int) delay_buffer;
-    printf("Initial Delay: %f, min_delay: %f", delay_buffer, delay_min_buff);
+    threshold = (40 * 1000) / rule.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
+    threshold_min = (1 * 1000) / rule.delay_s; // delay minimo 1 s
+    threshold_max = (int) threshold;
+    printf("Initial Delay: %f, min_delay: %f", threshold, threshold_min);
     // 1 minute express and number of packets -> (1*60*1000)/ DELAY
     // [1 minute - 50 ms frequency = 1200 packet]
+    is_running_rule = true;
 }
 
 void info_test() {
@@ -338,7 +340,7 @@ void info_test() {
     for (int j = 0; j < 5; ++j) {
         gpio_set_level(LED_BLE, LED_ON);
         gpio_set_level(LED_WIFI, LED_ON);
-        vTaskDelay(m1.delay_s / portTICK_PERIOD_MS);
+        vTaskDelay(rule.delay_s / portTICK_PERIOD_MS);
         gpio_set_level(LED_BLE, LED_OFF);
         gpio_set_level(LED_WIFI, LED_OFF);
     }
@@ -351,16 +353,16 @@ void mixed_rule() {
     is_running_rule = false;
     change_delay = false;
     level_sent = 1;
-    delay_buffer = (40 * 1000) / m1.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
-    delay_min_buff = (1 * 1000) / m1.delay_s; // delay minimo 1 s
-    delay_buff_init = (int) (10 * 1000) / m1.delay_s; //10 seconds
-    printf("Initial Delay: %f, min_delay: %f", delay_buffer, delay_min_buff);
+    threshold = (40 * 1000) / rule.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
+    threshold_min = (1 * 1000) / rule.delay_s; // delay minimo 1 s
+    threshold_max = (int) (10 * 1000) / rule.delay_s; //10 seconds
+    printf("Initial Delay: %f, min_delay: %f", threshold, threshold_min);
 
     q_ble = create_queue();
 
-    const TickType_t xDelay = m1.delay_s / portTICK_PERIOD_MS;
-    ESP_LOGW("TIME", "Start after first delay: %d --> delay loop: %d\n", m1.delay_s, xDelay);
-    ESP_LOGW("TIME", "Delay_Buffer :%d [min: %d]\n", (int) delay_buffer, (int) delay_min_buff);
+    const TickType_t xDelay = rule.delay_s / portTICK_PERIOD_MS;
+    ESP_LOGW("TIME", "Start after first delay: %d --> delay loop: %d\n", rule.delay_s, xDelay);
+    ESP_LOGW("TIME", "Delay_Buffer :%d [min: %d]\n", (int) threshold, (int) threshold_min);
 
     is_running_rule = true;
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -368,13 +370,13 @@ void mixed_rule() {
     // TODO BLE
     mystatus = '1';
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    create_message_rapid("F", "1", "0", 1);
-    for (int i = 0; i < m1.n_mex_s; ++i) {
+    event_reporting("F", "1", "0", 1);
+    for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, m1.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
         level_sent += 1;
     }
-    create_message_rapid("F", "1", "1", 1);
+    event_reporting("F", "1", "1", 1);
     is_running_rule = false;
     vTaskDelay(10000 / portTICK_PERIOD_MS);
 
@@ -384,15 +386,15 @@ void mixed_rule() {
     change_delay = false;
     xTaskCreate(udp_client_sent, "udp_sent_mixed", 2048, NULL, 2, NULL);
     xLastWakeTime = xTaskGetTickCount();
-    create_message_rapid("F", "2", "0", 1);
-    for (int i = 0; i < m1.n_mex_s; ++i) {
+    event_reporting("F", "2", "0", 1);
+    for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, m1.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
         level_sent += 1;
     }
-    create_message_rapid("F", "2", "1", 1);
+    event_reporting("F", "2", "1", 1);
     is_running_rule = false;
-    delay_buffer = (40 * 1000) / m1.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
+    threshold = (40 * 1000) / rule.delay_s; // 40 seconds --> (30*1000 / DELAY) --> 600 packets
     empty_queue(q_ble);
     change_delay = false;
     vTaskDelay(10000 / portTICK_PERIOD_MS);
@@ -401,13 +403,13 @@ void mixed_rule() {
     mystatus = '3';
     is_running_rule = true;
     xLastWakeTime = xTaskGetTickCount();
-    create_message_rapid("F", "3", "0", 1);
-    for (int i = 0; i < m1.n_mex_s; ++i) {
+    event_reporting("F", "3", "0", 1);
+    for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
         send_mex_wifi(level_sent);
         level_sent += 1;
     }
-    create_message_rapid("F", "3", "1", 1);
+    event_reporting("F", "3", "1", 1);
     is_running_rule = false;
     vTaskDelay(10000 / portTICK_PERIOD_MS);
 
@@ -417,13 +419,13 @@ void mixed_rule() {
     change_delay = true;
     xTaskCreate(udp_client_sent, "udp_sent_mixed", 2048, NULL, 2, NULL);
     xLastWakeTime = xTaskGetTickCount();
-    create_message_rapid("F", "4", "0", 1);
-    for (int i = 0; i < m1.n_mex_s; ++i) {
+    event_reporting("F", "4", "0", 1);
+    for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, m1.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
         level_sent += 1;
     }
-    create_message_rapid("F", "4", "1", 1);
+    event_reporting("F", "4", "1", 1);
     is_running_rule = false;
     empty_queue(q_ble);
     change_delay = false;
@@ -432,24 +434,24 @@ void mixed_rule() {
     // TODO BLE
     mystatus = '1';
     xLastWakeTime = xTaskGetTickCount();
-    create_message_rapid("F", "5", "0", 1);
-    for (int i = 0; i < m1.n_mex_s; ++i) {
+    event_reporting("F", "5", "0", 1);
+    for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, m1.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
         level_sent += 1;
     }
-    create_message_rapid("F", "5", "1", 1);
+    event_reporting("F", "5", "1", 1);
     is_running_rule = false;
-    create_message_rapid("F", "0", "0", 1);
+    event_reporting("F", "0", "0", 1);
 }
 
 void execute_rule() {
     initialize_variables();
     q_ble = create_queue();
 
-    const TickType_t xDelay = m1.delay_s / portTICK_PERIOD_MS;
-    ESP_LOGW("TIME", "Start after first delay: %d --> delay loop: %d\n", m1.delay_s, xDelay);
-    ESP_LOGW("TIME", "Delay_Buffer :%d [min: %d]\n", (int) delay_buffer, (int) delay_min_buff);
+    const TickType_t xDelay = rule.delay_s / portTICK_PERIOD_MS;
+    ESP_LOGW("TIME", "Start after first delay: %d --> delay loop: %d\n", rule.delay_s, xDelay);
+    ESP_LOGW("TIME", "Delay_Buffer :%d [min: %d]\n", (int) threshold, (int) threshold_min);
 
     is_running_rule = true;
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -457,12 +459,12 @@ void execute_rule() {
 
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
-    for (int i = 0; i < m1.n_mex_s; ++i) {
+    for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(m1.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, m1.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
         level_sent += 1;
     }
-    create_message_rapid("F", "0", "0", 1);
+    event_reporting("F", "0", "0", 1);
     ESP_LOGE("RULE", "End send");
     info_test();
 }
@@ -483,10 +485,10 @@ void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
             m2.ack_s = strtoul((const char *) t3_char[1], NULL, 2);
         }
     } else if (tokens0 == '&') {
-        m1.n_mex_s = strtoul((const char *) t1_char[1], NULL, 10);
-        m1.addr_s = strtoul((const char *) t2_char[1], NULL, 16);
-        m1.delay_s = strtoul((const char *) t3_char[1], NULL, 10);
-        m1.ack_s = 0;
+        rule.n_mex_s = strtoul((const char *) t1_char[1], NULL, 10);
+        rule.addr_s = strtoul((const char *) t2_char[1], NULL, 16);
+        rule.delay_s = strtoul((const char *) t3_char[1], NULL, 10);
+        rule.ack_s = 0;
     }
 
     free(t1_char);
@@ -519,9 +521,9 @@ void command_received(char **tokens, int count) {
             break;
         case '&':
             decoding_string('&', tokens[1], tokens[2], tokens[3]);
-            printf("n_mex: %hu\n", m1.n_mex_s);
-            printf("addr: %hhu\n", m1.addr_s);
-            printf("delay: %u\n", m1.delay_s);
+            printf("n_mex: %hu\n", rule.n_mex_s);
+            printf("addr: %hhu\n", rule.addr_s);
+            printf("delay: %u\n", rule.delay_s);
             execute_rule();
             //mixed_rule();
             break;
@@ -536,27 +538,27 @@ void command_received(char **tokens, int count) {
  *******************************************************/
 void update_delay_buffer(int key) {
     if (change_delay) {
-        // TODO [Emilio] delay_1 = delay_0 + alpha*(R - delay_0)
-        // TODO [Emilio] delay_1 = alpha*R + (1-alpha) * delay_0
-        // TODO alpha = 0.05 --> 1-alpha = 0.95
-        int diff = level_sent - key;
-        double new_delay = 1.1 * ((0.2 * diff) + (0.8 * delay_buffer));
+        // TODO [Emilio] threshold_1 = 1.1* (threshold_0 + alpha*(R - threshold_0))
+        // TODO [Emilio] threshold_1 = alpha*R + (1-alpha) * threshold_0
+        // TODO alpha = 0.2 --> 1-alpha = 0.8
+        int status = level_sent - key;
+        double threshold_1 = 1.1 * ((0.2 * status) + (0.8 * threshold));
 
-        int last_delay = (int) delay_buffer;
-        if (new_delay >= delay_min_buff && new_delay <= delay_buff_init) {
-            delay_buffer = new_delay; // a <= delay <= b
-        } else if (new_delay > delay_buff_init) {
-            delay_buffer = delay_buff_init; // delay > b
+        int threshold_0 = (int) threshold;
+        if (threshold_1 >= threshold_min && threshold_1 <= threshold_max) {
+            threshold = threshold_1; // a <= threshold <= b
+        } else if (threshold_1 > threshold_max) {
+            threshold = threshold_max; // threshold > b
         } else {
-            delay_buffer = delay_min_buff; // delay < a
+            threshold = threshold_min; // threshold < a
         }
 
-        if (last_delay != (int) delay_buffer) {
-            int delay = (int) delay_buffer;
+        if (threshold_0 != (int) threshold) {
+            int delay = (int) threshold;
             char new[7];
             sprintf(new, "%d", delay);
-            create_message_rapid("T", new, "*", 0);
-            ESP_LOGE("TIME", "Change Delay: %d --> %d", last_delay, delay);
+            event_reporting("T", new, "*", 0);
+            ESP_LOGE("TIME", "Change Delay: %d --> %d", threshold_0, delay);
         }
     }
 }
@@ -565,7 +567,7 @@ void update_delay_buffer(int key) {
 /*******************************************************
  *                Function Definitions UART
  *******************************************************/
-void create_message_rapid(char *status, char *level, char *ttl, uint8_t show_log) {
+void event_reporting(char *status, char *level, char *ttl, uint8_t show_log) {
     char *str3 = malloc(1 + 2 + strlen(status) + strlen(level) + strlen(status));// 1 end char; 1 for comma
 
     strcpy(str3, status);
@@ -678,24 +680,23 @@ static void uart_task(void *args) {
     }
 }
 
-void uart_trasmitting(const char *test_str) {
-    const int len = strlen(test_str);
-    uart_write_bytes(UART_NUM_1, test_str, len);
+void uart_trasmitting(const char *event_s) {
+    const int len = strlen(event_s);
+    uart_write_bytes(UART_NUM_1, event_s, len);
 }
 
 void init_wifi() {
     xTaskCreate(udp_client_sent, "udp_sent", 2048, NULL, 2, NULL);
 }
 
-void board_init(void) {
+void start_communication(void) {
     tcpip_adapter_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    ESP_ERROR_CHECK(example_connect());
+    ESP_ERROR_CHECK(esp_connect());
 
     create_socket();
 
     xTaskCreate(udp_client_receive, "udp_receive", 2048, NULL, 2, NULL);
-
-    xTaskCreate(uart_task, "uart_task", 3072, NULL, 4, NULL);
+    xTaskCreate(uart_task, "uart_task", 3072, NULL, 2, NULL);
 }

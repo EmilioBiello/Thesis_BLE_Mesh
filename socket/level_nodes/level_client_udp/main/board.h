@@ -47,11 +47,11 @@ void board_led_operation(uint8_t pin, uint8_t status_led);
 
 void wifi_led(uint8_t pin, uint8_t status_led);
 
-void board_init(void);
+void start_communication(void);
 
 void send_mex_wifi(int16_t value);
 
-void create_message_rapid(char *status, char *level, char *ttl, uint8_t show_log);
+void event_reporting(char *status, char *level, char *ttl, uint8_t show_log);
 
 void queue_operation(char operation, char tech, int key);
 

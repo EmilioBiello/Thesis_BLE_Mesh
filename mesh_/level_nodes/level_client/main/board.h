@@ -26,8 +26,8 @@ struct _led_state {
 
 void board_led_operation(uint8_t pin, uint8_t status_led);
 
-void board_init(void);
+void start_communication(void);
 
-void create_message_rapid(char *opcode, char *level, char *ttl);
+void event_reporting(char *opcode, char *level, char *ttl);
 
 #endif

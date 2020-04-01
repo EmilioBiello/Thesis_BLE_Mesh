@@ -26,7 +26,7 @@ struct QNode *new_node(int data);
 struct MyQueue *create_queue();
 
 // The function to add a data k to q
-void enQueue(struct MyQueue *q, int k);
+void enQueue(struct MyQueue *q, int key);
 
 // Function to remove a key from given queue q
 int deQueue(struct MyQueue *q);
@@ -35,10 +35,10 @@ int deQueue(struct MyQueue *q);
 void printQueue(struct MyQueue *q);
 
 // Delete specific key
-int delete_node(struct MyQueue *q, int key);
+int remove_key(struct MyQueue *q, int key);
 
 // Get First mex
-int get_front_mex(struct MyQueue *q);
+int get_front_key(struct MyQueue *q);
 
 // Empty Queue
 int empty_queue(struct MyQueue *q);

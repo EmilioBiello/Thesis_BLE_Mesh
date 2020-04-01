@@ -90,7 +90,7 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
 
     //inizializzo WIFI
     vTaskDelay(10000 / portTICK_PERIOD_MS);
-    board_init();
+    start_communication();
 }
 
 static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
@@ -148,14 +148,16 @@ void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_r
     my_info_level = level;
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set);
-    if (err) {
-        ESP_LOGE(TAG_BLE, "%s: Generic Level Set failed", __func__);
-    }
     char level_c[7];
     sprintf(level_c, "%d", level);
-    create_message_rapid("S", level_c, "3", 1);
-    queue_operation('a', 'b', level);
-    //queue_op_mixed('a', 'b', level);
+    if (err) {
+        ESP_LOGE(TAG_BLE, "%s: Generic Level Set failed", __func__);
+        event_reporting("W", level_c, "0", 1);
+    }else{
+        event_reporting("S", level_c, "3", 1);
+        queue_operation('a', 'b', level);
+        //queue_op_mixed('a', 'b', level);
+    }
 }
 
 static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
@@ -182,7 +184,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
                 char info_level[7];
                 sprintf(info_level, "%d", my_info_level);
                 // TODO [Emilio] commentata scrittua su seriale
-                create_message_rapid("E", info_level, "0", 1);
+                event_reporting("E", info_level, "0", 1);
                 // send_mex_wifi(my_info_level);
             }
             //ESP_LOGI(TAG_BLE, "--- SET_STATE_EVT 0x%x", param->params->opcode);
@@ -194,7 +196,7 @@ static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_ev
             sprintf(level, "%d", param->status_cb.level_status.present_level);
             sprintf(ttl, "%d", param->params->ctx.recv_ttl);
             // TODO [Emilio] commentata scrittua su seriale
-            create_message_rapid("R", level, ttl, 1);
+            event_reporting("R", level, ttl, 1);
             queue_operation('d', 'b', param->status_cb.level_status.present_level);
 //            queue_op_mixed('d', 'b', param->status_cb.level_status.present_level);
             break;

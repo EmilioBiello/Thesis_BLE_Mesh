@@ -17,9 +17,9 @@ struct MyQueue *create_queue() {
     return q;
 }
 
-void enQueue(struct MyQueue *q, int k) {
+void enQueue(struct MyQueue *q, int key) {
     // Create a new LL node
-    struct QNode *temp = new_node(k);
+    struct QNode *temp = new_node(key);
 
     // If queue is empty, then new node is front and rear both
     if (q->rear == NULL) {
@@ -57,7 +57,7 @@ int deQueue(struct MyQueue *q) {
     return result;
 }
 
-int delete_node(struct MyQueue *q, int key) {
+int remove_key(struct MyQueue *q, int key) {
     // Remove first Node
     if (q->front != NULL && q->front->data == key) {
         int value = deQueue(q);
@@ -89,7 +89,7 @@ int delete_node(struct MyQueue *q, int key) {
     return value;
 }
 
-int get_front_mex(struct MyQueue *q) {
+int get_front_key(struct MyQueue *q) {
     if (q->front == NULL)
         return -1;
     return q->front->data;
