@@ -163,7 +163,6 @@ static void udp_server_task(void *pvParameters) {
         // Error occurred during receiving
         if (len < 0) {
             ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-            break;
         } else {
             // Get the sender's ip address as string
             inet_ntoa_r(((struct sockaddr_in *) &source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
@@ -185,11 +184,9 @@ static void udp_server_task(void *pvParameters) {
 }
 
 void wifi_init() {
-    ESP_ERROR_CHECK(nvs_flash_init());
     tcpip_adapter_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    ESP_ERROR_CHECK(example_connect());
+    ESP_ERROR_CHECK(esp_connect());
 
     create_socket();
 

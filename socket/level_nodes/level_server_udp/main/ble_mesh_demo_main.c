@@ -221,10 +221,6 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
                 param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
                 example_handle_gen_level_msg(param->model, &param->ctx, &param->value.set.level);
                 // ESP_LOGI(TAG_BLE, "LEVEL %d, tid %d", param->value.set.level.level, param->value.set.level.tid);
-                if (param->value.set.level.op_en) {
-                    ESP_LOGI(TAG_BLE, "trans_time 0x%02x, delay 0x%02x", param->value.set.level.trans_time,
-                             param->value.set.level.delay);
-                }
             }
             ESP_LOGI(TAG_BLE, "SET_MSG_EVT");
             break;

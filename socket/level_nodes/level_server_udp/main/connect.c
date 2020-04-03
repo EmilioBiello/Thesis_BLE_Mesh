@@ -36,7 +36,7 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
     xEventGroupSetBits(s_connect_event_group, GOT_IPV4_BIT);
 }
 
-esp_err_t example_connect() {
+esp_err_t esp_connect() {
     if (s_connect_event_group != NULL) {
         return ESP_ERR_INVALID_STATE;
     }
