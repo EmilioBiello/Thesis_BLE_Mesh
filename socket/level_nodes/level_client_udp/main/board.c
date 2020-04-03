@@ -29,15 +29,15 @@
 #include "my_queue.h"
 #include "connect.h"
 
-extern void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel);
+extern void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level);
 
 char **str_split(char *a_str, char a_delim);
 
 uint8_t count_tokens(char *a_str, char a_delim);
 
-void decoding_string(char tokens0, char *token1, char *token2, char *token3);
+bool decoding_string(char tokens0, char *token1, char *token2, char *token3);
 
-void command_received(char **tokens, int count);
+void command_received(char **tokens);
 
 void update_delay_buffer(int key);
 
@@ -71,15 +71,13 @@ struct Rule_Message {
     uint16_t n_mex_s;
     uint8_t addr_s;
     uint16_t delay_s;
-    bool ack_s;
 } rule;
 
 struct Message_Set {
     uint8_t addr_s;
     uint16_t level_s;
     uint32_t opcode_s;
-    bool ack_s;
-} m2;
+} mex;
 
 static bool s_light_inited = false;
 
@@ -373,7 +371,7 @@ void mixed_rule() {
     event_reporting("F", "1", "0", 1);
     for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent);
         level_sent += 1;
     }
     event_reporting("F", "1", "1", 1);
@@ -389,7 +387,7 @@ void mixed_rule() {
     event_reporting("F", "2", "0", 1);
     for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent);
         level_sent += 1;
     }
     event_reporting("F", "2", "1", 1);
@@ -422,7 +420,7 @@ void mixed_rule() {
     event_reporting("F", "4", "0", 1);
     for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent);
         level_sent += 1;
     }
     event_reporting("F", "4", "1", 1);
@@ -437,7 +435,7 @@ void mixed_rule() {
     event_reporting("F", "5", "0", 1);
     for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent);
         level_sent += 1;
     }
     event_reporting("F", "5", "1", 1);
@@ -461,7 +459,7 @@ void execute_rule() {
 
     for (int i = 0; i < rule.n_mex_s; ++i) {
         vTaskDelayUntil(&xLastWakeTime, xDelay);
-        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent, rule.ack_s);
+        send_message_BLE(rule.addr_s, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK, level_sent);
         level_sent += 1;
     }
     event_reporting("F", "0", "0", 1);
@@ -469,35 +467,34 @@ void execute_rule() {
     info_test();
 }
 
-void decoding_string(char tokens0, char *token1, char *token2, char *token3) {
+bool decoding_string(char tokens0, char *token1, char *token2, char *token3) {
+    bool is_ack = false;
     char **t1_char = str_split(token1, ':');
     char **t2_char = str_split(token2, ':');
     char **t3_char = str_split(token3, ':');
 
     if (tokens0 == '@') {
-        m2.addr_s = strtoul((const char *) t1_char[1], NULL, 16);
-        m2.level_s = strtoul((const char *) t2_char[1], NULL, 10);
-        if (strcmp(t3_char[0], "unack") == 0) {
-            m2.opcode_s = ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK;
-            m2.ack_s = 0;
+        mex.addr_s = strtoul((const char *) t1_char[1], NULL, 16);
+        mex.level_s = strtoul((const char *) t2_char[1], NULL, 10);
+        if (strcmp(t3_char[1], "unack") == 0) {
+            mex.opcode_s = ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK;
         } else {
-            m2.opcode_s = ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET;
-            m2.ack_s = strtoul((const char *) t3_char[1], NULL, 2);
+            mex.opcode_s = ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET;
+            is_ack = true;
         }
     } else if (tokens0 == '&') {
         rule.n_mex_s = strtoul((const char *) t1_char[1], NULL, 10);
         rule.addr_s = strtoul((const char *) t2_char[1], NULL, 16);
         rule.delay_s = strtoul((const char *) t3_char[1], NULL, 10);
-        rule.ack_s = 0;
     }
 
     free(t1_char);
     free(t2_char);
     free(t3_char);
+    return is_ack;
 }
 
-void command_received(char **tokens, int count) {
-    count = count - 2;
+void command_received(char **tokens) {
     switch (tokens[0][0]) {
         case '#':
             is_running_rule = false;
@@ -508,14 +505,12 @@ void command_received(char **tokens, int count) {
             break;
         case '@':
             is_running_rule = false;
-            if (count == 2) {
-                decoding_string('@', tokens[1], tokens[2], "unack");
-                send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, false);
-                ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
-            } else if (count == 3) {
-                decoding_string('@', tokens[1], tokens[2], tokens[3]);
-                send_message_BLE(m2.addr_s, m2.opcode_s, m2.level_s, m2.ack_s);
+            bool is_ack = decoding_string('@', tokens[1], tokens[2], tokens[3]);
+            send_message_BLE(mex.addr_s, mex.opcode_s, mex.level_s);
+            if (is_ack) {
                 ESP_LOGI("SEND_MESSAGE", "SET");
+            }else{
+                ESP_LOGI("SEND_MESSAGE", "SET_UNACK");
             }
             printf("BLE send mex\n");
             break;
@@ -670,9 +665,8 @@ static void uart_task(void *args) {
             data_uart[rxBytes] = '\0';
             ESP_LOGI("UART", "Read %d bytes: '%s'", rxBytes, data_uart);
 
-            size_t count = count_tokens((char *) data_uart, ',');
             char **tokens = str_split((char *) data_uart, ',');
-            command_received(tokens, count);
+            command_received(tokens);
 
             fflush(stdout);
             uart_flush_input(UART_NUM_1);

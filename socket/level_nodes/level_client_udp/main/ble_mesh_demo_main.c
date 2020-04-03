@@ -127,7 +127,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_rel) {
+void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level) {
     esp_ble_mesh_generic_client_set_state_t set = {{0}};
     esp_ble_mesh_client_common_param_t common = {0};
     esp_err_t err;
@@ -138,7 +138,7 @@ void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level, bool send_r
     common.ctx.app_idx = node_app_idx;
     common.ctx.addr = addr;   /* 0xFFFF --> to all nodes */ /* 0xC001 myGroup*/
     common.ctx.send_ttl = 3;
-    common.ctx.send_rel = send_rel;
+    common.ctx.send_rel = false;
     common.msg_timeout = 0; // 200    /* 0 indicates that timeout value from menuconfig will be used */ /* The default value (4 seconds) would be applied if the parameter msg_timeout is set to 0. */
     common.msg_role = ROLE_NODE;
 
