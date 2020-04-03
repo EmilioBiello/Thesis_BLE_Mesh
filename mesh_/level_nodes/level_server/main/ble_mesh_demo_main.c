@@ -33,7 +33,7 @@ extern struct _led_state led_state[2];
 static uint8_t dev_uuid[16] = {0xdd, 0xdd};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
-        .relay = ESP_BLE_MESH_RELAY_ENABLED,
+        .relay = ESP_BLE_MESH_RELAY_DISABLED,
         .beacon = ESP_BLE_MESH_BEACON_ENABLED,
 #if defined(CONFIG_BLE_MESH_FRIEND)
         .friend_state = ESP_BLE_MESH_FRIEND_ENABLED,
@@ -105,7 +105,7 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
     board_led_operation(LED_G, LED_OFF);
 }
 
-static void example_change_led_state(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx) {
+static void change_led_state(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx) {
     uint16_t primary_addr = esp_ble_mesh_get_primary_element_address();
     uint8_t elem_count = esp_ble_mesh_get_element_count();
     struct _led_state *led = NULL;
@@ -168,7 +168,7 @@ static void example_handle_gen_level_msg(esp_ble_mesh_model_t *model, esp_ble_me
 //                esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_STATUS, sizeof(srv->state.level),
 //                                           (uint8_t *) &srv->state.level, ROLE_NODE);
 //            }
-            example_change_led_state(model, ctx);
+            change_led_state(model, ctx);
             break;
         default:
             printf("%s --> DEFAULT STATE", __func__);
@@ -226,7 +226,7 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
             // Messaggio Ricevuto da tutti i nodi
             if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET ||
                 param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK) {
-                example_change_led_state(param->model, &param->ctx);
+                change_led_state(param->model, &param->ctx);
                 ESP_LOGI(TAG, "STATE_CHANGE_EVT --> Level %d", param->value.state_change.level_set.level);
             }
             break;
