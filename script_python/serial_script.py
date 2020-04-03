@@ -15,7 +15,7 @@ event = Event()
 regular_expresion_command = "^(e|p|q)$"
 regular_expresion_set_get = "^@,addr:(((0x){1}[a-fA-F-0-9]{4})|([0-9]{1,2}))(,level:[0-9]{1,5},type:(unack|ack)){0,1}$"
 regular_expresion_rule = "^&,n_mex:[0-9]{1,5},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6}$"
-regular_expresion_log = "^#,level:[0-9]{1,5}$"
+regular_expresion_wifi = "^#,level:[0-9]{1,5}$"
 
 save_data = False
 update_my_dictionary = False
@@ -50,7 +50,7 @@ def write_on_serial():
             command = input("Insert command to send to esp32: \n")
 
             if re.match(regular_expresion_command, command) or re.match(regular_expresion_set_get, command) or \
-                    re.match(regular_expresion_rule, command) or re.match(regular_expresion_log, command):
+                    re.match(regular_expresion_rule, command) or re.match(regular_expresion_wifi, command):
                 if command == 'q' or command == 'e':
                     if command == 'q':
                         save_data = True
@@ -93,12 +93,8 @@ def read_from_serial():
                     data['_command']['ip_dest'] = "192.168.43.136"
                     data['_command']['ip_mitt'] = "192.168.43.84"
 
+                    save_dictionary()
                     print('\x1b[6;30;42m' + " Saved! " + '\x1b[0m')
-                    path_directory = "./test_bis/test_" + str(dt.datetime.strftime(dt.datetime.now(), "%Y_%m_%d"))
-                    directory = my.define_directory(directory=path_directory)
-                    path = directory + '/test_' + dt.datetime.now().strftime("%y_%m_%d-%H_%M_%S") + '.json'
-                    print(path)
-                    my.save_json_data_elegant(path=path, data=data)
             else:
                 print("goodbye")
             break
@@ -128,6 +124,14 @@ def update_dictionary(now, message):
             'message_id': message,
             'time': now
         })
+
+
+def save_dictionary():
+    path_directory = "./test_bis/test_" + str(dt.datetime.strftime(dt.datetime.now(), "%Y_%m_%d"))
+    directory = my.define_directory(directory=path_directory)
+    path = directory + '/test_' + dt.datetime.now().strftime("%y_%m_%d-%H_%M_%S") + '.json'
+    print(path)
+    my.save_json_data_elegant(path=path, data=data)
 
 
 def main():
