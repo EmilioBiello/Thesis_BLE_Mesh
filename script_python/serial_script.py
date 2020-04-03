@@ -13,9 +13,8 @@ baud = 115200
 data = {}
 event = Event()
 regular_expresion_command = "^(e|p|q)$"
-regular_expresion_set_get = "^@,addr:(((0x){1}[a-fA-F-0-9]{4})|([0-9]{1,2}))(,level:[0-9]{1,5}(,ack:[0|1]){0,1}){0,1}$"
+regular_expresion_set_get = "^@,addr:(((0x){1}[a-fA-F-0-9]{4})|([0-9]{1,2}))(,level:[0-9]{1,5},type:(unack|ack)){0,1}$"
 regular_expresion_rule = "^&,n_mex:[0-9]{1,5},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6}$"
-# regular_expresion_rule = "^&,n_mex:[0-9]{1,5},addr:([0-9]{1,2}|0x[a-fA-F-0-9]{4}),delay:[0-9]{1,6},index:[0-4]$"
 regular_expresion_log = "^#,level:[0-9]{1,5}$"
 
 save_data = False
@@ -29,12 +28,11 @@ if esp32.isOpen():
 
 def reading():
     print('\x1b[0;33;40m' + "******" + '\x1b[0m')
-    print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000 (ms)}")
-    print(" - Rule: { &,n_mex:10,addr:0x0004,delay:1000,index:2 [30:ae:a4:5f:1b:a4]}")
-    print(" - [BLE] GET mex: {@,addr:0x0004}")
-    print(" - [BLE] SET_UNACK mex: { @,addr:0x0004,level:1 }")
-    print(" - [BLE] SET mex: { @,addr:0x0004,level:1,ack:0 }")
-    print(" - [WIFI] send mex to all {#,level:1}")
+    print(" - Rule:                     { &,n_mex:10,addr:0x0004,delay:1000 (ms) }")
+    print(" - [BLE] GET mex:            { @,addr:0x0004 }")
+    print(" - [BLE] SET_UNACK mex:      { @,addr:0x0004,level:1,type:unack }")
+    print(" - [BLE] SET mex:            { @,addr:0x0004,level:1,type:ack }")
+    print(" - [WIFI] send mex to all    { #,level:1 }")
     print("*** " + '\x1b[0;33;40m' + "print JSON data" + '\x1b[0m' + ": \'" +
           '\x1b[1;31;40m' + "p" + '\x1b[0m' + "\' ***")
     print("*** " + '\x1b[0;33;40m' + "save and exit" + '\x1b[0m' + ": \'" +
