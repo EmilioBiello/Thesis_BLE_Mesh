@@ -101,7 +101,8 @@ def get_grouped_files(source_path, delay, index_delay):
         data = open_file_and_return_data(name)
         if data['_command']['delay'] != delay[index_delay]:
             raise Exception(
-                "\x1b[1;31;40m File Error in this directory. [{}] Different Delay --> {} ]\x1b[0m".format(delay[index_delay], name))
+                "\x1b[1;31;40m File Error in this directory. [{}] Different Delay --> {} ]\x1b[0m".format(
+                    delay[index_delay], name))
     return list_of_files
 
 
@@ -179,8 +180,8 @@ def intervalli_di_confidenza(dataset):
     mean = np.mean(dataset)
     std = np.std(dataset)
     sample_size = len(dataset)
-    quantile = 1.96
-    margine_errore = quantile * (std / np.sqrt(sample_size))
+    coef_confidenza = 1.96  # al 95%
+    margine_errore = coef_confidenza * (std / np.sqrt(sample_size))
     value_1 = mean - margine_errore
     value_2 = mean + margine_errore
 

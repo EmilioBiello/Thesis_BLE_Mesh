@@ -5,7 +5,7 @@ import pandas as pd
 # TODO cambiare gli indici [index_1 -> topic, index_2 -> delay]
 index_relay = 0  # 0..2
 index_delay = 0  # 0..6
-tech = 'ble_wifi_output'
+tech = 'ble_output'
 ################################################################
 relay = [0, 1, 2]
 delay = [50, 100, 150, 200, 250, 500, 1000]
