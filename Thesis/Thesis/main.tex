@@ -1,0 +1,78 @@
+% === Impostazione del documento ==========================
+\documentclass[12pt,a4paper,openright,twoside]{report} % grandezza_carattere=12, formato=a4, apre_capitoli_a_dx=openright, documento_fronteretro=twoside, stile_tesi=report
+\usepackage[english,italian]{babel} %libreria per scrivere in italiano
+\usepackage[T1]{fontenc} % caratteri accentati
+\usepackage{fancyhdr} % impostare il documento
+\usepackage{indentfirst} % indentazione inizio capitolo
+% \usepackage{showkeys} % mostrare le etichette
+\usepackage{graphicx} % inserire i grafici
+\usepackage{newlfont} % utilizzare font particolari
+\usepackage{setspace} % gestire la spaziatura
+\usepackage{subcaption} % gestire due figure in un'immagine
+\usepackage{bold-extra,geometry, amssymb,amsmath,mathtools, microtype,url}
+\usepackage{emptypage} % pagine bianche
+\usepackage{multirow} % Required for multirows
+
+\usepackage{mystyle}
+
+\usepackage[bookmarks=true, hidelinks, pdftitle={EmilioTesi},pdfauthor={Emilio Biello}]{hyperref}
+
+
+\usepackage[backend=biber,style=ieee,sorting=ynt]{biblatex} %Imports biblatex package
+\usepackage{csquotes}
+\addbibresource{bibliography.bib} % bibliografia
+
+%\newcolumntype{b}{X}
+%\newcolumntype{s}{>{\hsize=.5\hsize}X}
+%\newcommand{\heading}[1]{\multicolumn{1}{c}{#1}}
+
+\graphicspath{{images/}}
+
+%%%%%%%%%%%%% PER LA LETTURA SI CONSIGLIA CAMBIARE IN QUESTO
+%\usepackage{geometry}
+%\geometry{a4paper, portrait, margin=1.5cm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\oddsidemargin=30pt \evensidemargin=20pt % impostano margini
+
+% \hyphenation{sil-la-ba-zio-ne pa-ren-te-si} % sillabazione
+
+\begin{document}
+	% === Frontespizio ====================================
+	\pagestyle{empty}
+	\input{frontespizio/frontespizio.tex}
+	\clearpage{\pagestyle{empty}\cleardoublepage}
+	% \input{sections/dedica} % Dedica e Citazione
+	
+	\pagestyle{empty}
+	% === Indice ==========================================
+    \pagenumbering{Roman}   %use roman page numbering
+    \setcounter{page}{1}
+	\tableofcontents
+	\listoffigures
+	\listoftables
+    \cleardoublepage
+    
+    % === Capitoli Report ===================================
+    \pagenumbering{arabic} %use arabic page numbering
+    \setcounter{page}{1}
+    
+    \pagestyle{plain}
+    \input{sections/1_introduzione}
+    \input{sections/2_stato_arte}
+    \input{sections/2_stato_arte_2_BLE}
+    \input{sections/3_progettazione}
+    \input{sections/4_implementazione}
+    \input{sections/5_validazione}
+    \input{sections/6_conclusione}
+    
+    \input{sections/appendice}
+    
+    % === Bibliografia ====================================
+    \nocite{rose2015internet}       % Article - The internet of things: An overview
+    \nocite{minteer2017analytics}   % Book - Analytics for the Internet of Things (IoT)
+    
+    \cleardoublepage
+    \addcontentsline{toc}{chapter}{Bibliografia} 
+    \printbibliography
+\end{document}
