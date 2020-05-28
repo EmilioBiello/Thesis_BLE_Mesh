@@ -12,6 +12,7 @@
 \usepackage{bold-extra,geometry, amssymb,amsmath,mathtools, microtype,url}
 \usepackage{emptypage} % pagine bianche
 \usepackage{multirow} % Required for multirows
+\usepackage{wrapfig}
 
 \usepackage{mystyle}
 
@@ -35,25 +36,32 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \oddsidemargin=30pt \evensidemargin=20pt % impostano margini
 
-% \hyphenation{sil-la-ba-zio-ne pa-ren-te-si} % sillabazione
+\pagestyle{fancy}\addtolength{\headwidth}{20pt}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter.\ #1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection \ #1}{}}
+\rhead[\fancyplain{}{\bfseries\leftmark}]{\fancyplain{}{\bfseries\thepage}}
+\cfoot{}
+\linespread{1.25}                        %comando per impostare l'interlinea
 
 \begin{document}
 	% === Frontespizio ====================================
 	\pagestyle{empty}
 	\input{frontespizio/frontespizio.tex}
 	\clearpage{\pagestyle{empty}\cleardoublepage}
-	% \input{sections/dedica} % Dedica e Citazione
+	\input{sections/dedica} % Dedica e Citazione
 	
 	\pagestyle{empty}
 	% === Indice ==========================================
+    \pagestyle{plain}
     \pagenumbering{Roman}   %use roman page numbering
     \setcounter{page}{1}
 	\tableofcontents
-	\listoffigures
-	\listoftables
+	\listoffigures % Elenco Figure
+	% \listoftables % Elenco Tabelle
     \cleardoublepage
     
     % === Capitoli Report ===================================
+    \lhead[\fancyplain{}{\bfseries\thepage}]{\fancyplain{}{\bfseries\rightmark}}
     \pagenumbering{arabic} %use arabic page numbering
     \setcounter{page}{1}
     
@@ -69,10 +77,13 @@
     \input{sections/appendice}
     
     % === Bibliografia ====================================
-    \nocite{rose2015internet}       % Article - The internet of things: An overview
-    \nocite{minteer2017analytics}   % Book - Analytics for the Internet of Things (IoT)
-    
     \cleardoublepage
-    \addcontentsline{toc}{chapter}{Bibliografia} 
-    \printbibliography
+    \addcontentsline{toc}{chapter}{Bibliografia}
+    \printbibheading
+    \printbibliography[type=article,heading=subbibliography,title={Articoli}]
+    \printbibliography[type=book,heading=subbibliography,title={Libri}]
+    \printbibliography[keyword={online},heading=subbibliography,title={Online}]
+
+    % === Ringraziamenti ====================================
+    \input{sections/ringraziamenti}
 \end{document}
