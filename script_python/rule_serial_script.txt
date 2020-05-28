@@ -1,0 +1,13 @@
+@,addr:4,level:11,ack:0
+
+&,n_mex:7200,addr:8,delay:50
+&,n_mex:5040,addr:8,delay:75 [4800]
+&,n_mex:3600,addr:8,delay:100
+&,n_mex:2880,addr:4,delay:125
+&,n_mex:2520,addr:8,delay:150 [2400]
+&,n_mex:1800,addr:8,delay:200
+&,n_mex:1440,addr:8,delay:250
+&,n_mex:720,addr:8,delay:500
+&,n_mex:360,addr:8,delay:1000
+
+&,n_mex:100,addr:8,delay:50
