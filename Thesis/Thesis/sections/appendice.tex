@@ -133,7 +133,7 @@
         && \texttt{media} & \texttt{m\_e} & \texttt{media} & \texttt{m\_e} & \texttt{media} & \texttt{m\_e} \\
 
 		\hline
-		1 Hz & \scriptsize (1000 ms) & $ 0.163 $ & $ 0.048 $ & $ 1.0 $ & $ 0.0 $ & $ 2.0 $ & $ 0.0 $ \\
+ 		1 Hz & \scriptsize (1000 ms) & $ 0.163 $ & $ 0.048 $ & $ 1.0 $ & $ 0.0 $ & $ 2.0 $ & $ 0.0 $ \\
 		\hline
 		2 Hz & \scriptsize (500 ms) & $ 0.112 $ & $ 0.017 $ & $ 1.0 $ & $ 0.0 $ & $ 4.0 $ & $ 0.0 $ \\
 		\hline
@@ -183,6 +183,7 @@
 
 \subsubsection{Grafici Risultati Analisi}
 \label{apex:grafici}
+
 \begin{figure}[hbt!]
     \centering
     \includegraphics[width = 1\textwidth]{images/graphs/mixed_latency.png}
@@ -204,23 +205,61 @@
     \label{graph:mixed_goodput}
 \end{figure}
 
-\subsubsection{Grafici gestione pacchetti Approccio Misto}
+\clearpage
+\subsubsection{Tabella e Grafici gestione pacchetti - Approccio Misto}
 \label{apex:grafici_packets}
+
+\begin{table}[hbt!]
+    \centering
+    \begin{tabular}{ |rr|| c|c|| c|c|| c|c| } 
+        \hline
+%        \multicolumn{8}{|c|}{\textbf{Bluetooth Mesh - Wi-Fi} \texttt{configurazione 3}} \\
+%        \hline \hline
+
+        \multicolumn{2}{|c||}{\multirow{2}{*}{\textbf{Frequency}}} & \multicolumn{2}{|c||}{\textbf{Config. 1}} & \multicolumn{2}{|c||}{\textbf{Config. 2}} & \multicolumn{2}{|c|}{\textbf{Config. 3}} \\
+        && \texttt{ BLE } & \texttt{Wi-Fi} & \texttt{ BLE } & \texttt{Wi-Fi}& \texttt{ BLE } & \texttt{Wi-Fi} \\
+		\hline
+		1 Hz & \scriptsize (1000 ms) & $ 95 \% $ & $ 5 \% $ & $ 94 \% $ & $ 6 \% $ & $ 89 \% $ & $ 11 \% $  \\
+		\hline
+		2 Hz & \scriptsize (500 ms) & $ 96 \% $ & $ 4 \% $ & $ 95 \% $ & $ 5 \% $ & $ 93 \% $ & $ 7 \% $  \\
+		\hline
+		4 Hz & \scriptsize (250 ms) & $ 95 \% $ & $ 5 \% $ & $ 95 \% $ & $ 5 \% $ & $ 90 \% $ & $ 10 \% $  \\
+		\hline
+		5 Hz & \scriptsize (200 ms) & $ 94 \% $ & $ 6 \% $ & $ 73 \% $ & $ 27 \% $ & $ 72 \% $ & $ 28 \% $  \\
+		\hline
+		6.67 Hz & \scriptsize (150 ms) & $ 95 \% $ & $ 5 \% $ & $ 69 \% $ & $ 31 \% $ & $ 33 \% $ & $ 67 \% $ \\
+		\hline
+		10 Hz & \scriptsize (100 ms) & $ 83 \% $ & $ 17 \% $ & $ 28 \% $ & $ 72 \% $ & $ 15 \% $ & $ 85 \% $  \\
+		\hline
+		20 Hz & \scriptsize (50 ms) & $ 35 \% $ & $ 65 \% $ & $ 8 \% $ & $ 92 \% $ & $ 7 \% $ & $ 93 \% $  \\
+		\hline
+    \end{tabular}
+    \caption{Percentuali impiego tecnologie durante la fase di test}
+    \label{tab:table_perc_ble_wifi}
+\end{table}
+
 \begin{figure}[hbt!]
     \centering
-    \includegraphics[width = 1\textwidth]{images/graphs/myplot_config_1.png}
-    \caption{Tecnologia gestione pacchetti - Approccio Misto - Configurazione 1}
-    \label{graph:mixed_conf_1}
+    \includegraphics[width = 1\textwidth]{images/graphs/myplot_packets.png}
+    \caption{Gestione pacchetti Approccio Misto - Confronto}
+    \label{graph:mix_packets_percentuage}
 \end{figure}
-\begin{figure}[hbt!]
-    \centering
-    \includegraphics[width = 1\textwidth]{images/graphs/myplot_config_2.png}
-    \caption{Tecnologia gestione pacchetti - Approccio Misto - Configurazione 2}
-    \label{graph:mixed_conf_2}
-\end{figure}
-\begin{figure}[hbt!]
-    \centering
-    \includegraphics[width = 1\textwidth]{images/graphs/myplot_config_3.png}
-    \caption{Tecnologia gestione pacchetti - Approccio Misto - Configurazione 3}
-    \label{graph:mixed_conf_3}
-\end{figure}
+
+%\begin{figure}[hbt!]
+%    \centering
+%    \includegraphics[width = 1\textwidth]{images/graphs/myplot_config_1_title.png}
+%    \caption{Tecnologia gestione pacchetti - Approccio Misto - Configurazione 1}
+%    \label{graph:mixed_conf_1}
+%\end{figure}
+%\begin{figure}[hbt!]
+%    \centering
+%    \includegraphics[width = 1\textwidth]{images/graphs/myplot_config_2_title.png}
+%    \caption{Tecnologia gestione pacchetti - Approccio Misto - Configurazione 2}
+%    \label{graph:mixed_conf_2}
+%\end{figure}
+%\begin{figure}[hbt!]
+%    \centering
+%    \includegraphics[width = 1\textwidth]{images/graphs/myplot_config_3_title.png}
+%    \caption{Tecnologia gestione pacchetti - Approccio Misto - Configurazione 3}
+%    \label{graph:mixed_conf_3}
+%\end{figure}

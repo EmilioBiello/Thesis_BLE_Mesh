@@ -1,7 +1,7 @@
 \chapter{Implementazione}
 \label{ch:implementazione}
 
-In questa sezione verranno descritte le scelte implementative ed i componenti impiegati che hanno consentito la realizzazione di una rete in rispetto delle specifiche definite nel capitolo di \textit{\nameref{ch:progettazione}}.\\ 
+In questa sezione verranno descritte le scelte implementative ed i componenti impiegati che hanno consentito la realizzazione di una rete rispettando le specifiche definite nel capitolo di \textit{\nameref{ch:progettazione}}.\\ 
 Il seguente lavoro di tesi ha previsto la definizione di due approcci così strutturati: nel primo si è utilizzata solo la tecnologia \texttt{Bluetooth Mesh}, mentre nel secondo è stata integrato lo standard \texttt{802.11} come tecnologia di supporto.\\
 In entrambi gli approcci sono stati utilizzati quattro dispositivi ESP32 con i seguenti ruoli: 
 
@@ -10,43 +10,45 @@ In entrambi gli approcci sono stati utilizzati quattro dispositivi ESP32 con i s
     
     \item due dispositivi aventi il ruolo di \textit{relay}. Sfruttati solo con la tecnologia Bluetooth Mesh, poiché con la tecnologia 802.11 è stato necessario introdurre un dispositivo esterno, con il ruolo di \textit{router}.
     
-    \item un dispositivo \textit{server} avente il compito di ricevere dei messaggi precedentemente inviati dal client, attuare il cambiando di stato comunicato e confermare tale ricezione utilizzando la medesima tecnologia del messaggio ricevuto.
+    \item un dispositivo \textit{server} avente il compito di ricevere dei messaggi precedentemente inviati dal client, attuare il cambiamento di stato comunicato e confermare tale ricezione utilizzando la medesima tecnologia del messaggio ricevuto.
 \end{itemize}
 
-\noindent Per garantire la creazione della rete mesh è stato necessario l'utilizzo di un dispositivo in grado sia di supportare un'applicazione di provisioning sia in grado di eseguire le operazioni di routing per la tecnologia Wi-Fi. Per soddisfare entrambe queste richieste è stato adottato uno smartphone con supporto a Bluetooth 5. Oltre a tale dispositivo è stato necessario l'impiego di un PC non solo per programmare i vari nodi attraverso il framework \texttt{ESP-IDF} ma anche per consentire la comunicazione con il nodo client, necessaria per comunicare il comportamento da assumere e per ricevere e archiviare gli eventi innescati su tale nodo durante l'esecuzione del test.
+\noindent Per garantire la creazione della rete mesh è stato necessario l'impiego di un dispositivo in grado sia di supportare un'applicazione di provisioning sia in grado di eseguire le operazioni di routing per la tecnologia Wi-Fi. Per soddisfare entrambe queste richieste è stato adottato uno smartphone con supporto a Bluetooth 5. Oltre a tale dispositivo è stato necessario l'impiego di un PC non solo per programmare i vari nodi attraverso il framework \texttt{ESP-IDF} ma anche per consentire la comunicazione con il nodo client, necessaria per comunicare il comportamento da assumere e per ricevere e archiviare gli eventi innescati su tale nodo durante l'esecuzione del test.
 
 \section{Dispositivi}
-Come anticipato all'inizio del capitolo, per la realizzazione del seguente progetto di tesi sono stati coinvolti i seguenti dispositivi. Di seguito una breve descrizione.
+Come anticipato all'inizio del capitolo, per la realizzazione del seguente progetto di tesi sono stati coinvolti i diversi dispositivi, di seguito descritti.
 \subsection{ESP32}
 % http://esp32.net/
 % https://en.wikipedia.org/wiki/ESP32
 % https://www.espressif.com/en/products/hardware/esp32/overview
 % http://www.lucadentella.it/2016/12/03/esp32-1-introduzione/
 % https://www.zerozone.it/tecnologia-privacy-e-sicurezza/primi-esperimenti-di-iot-con-i-moduli-esp32/13230
-Il dispositivo ESP32 indica una serie di microcontrollori a basso costo e a bassa potenza il cui chip è in grado di supportare le tecnologie di comunicazione \texttt{Wi-Fi} e \texttt{dual-mode Bluetooth}. \\
+Il dispositivo ESP32 \cite{esp322019} indica una serie di microcontrollori a basso costo e a bassa potenza il cui chip è in grado di supportare le tecnologie di comunicazione \texttt{Wi-Fi} e \texttt{dual-mode Bluetooth}. \\
 A settembre 2016 Espressif Systems (una società cinese con sede a Shangai) ha annunciato e reso disponibile il chip successore ad ESP8266, chiamato appunto ESP32, il quale ha introdotto un numero maggiore di pin GPIO, la presenza della connettività Bluetooth, un sensore touch e maggiore memoria.\\ 
 Il nucleo di questi nuovi dispositivi è costituito da un microprocessore Tensilica Xtensa LX6 a 32-bit nelle varianti single-core o dual-core, in grado di operare con una frequenza comprese tra 80 e 240 MHz.\\
-L'integrazione di Bluetooth, Bluetooth Low Energy e Wi-Fi garantiscono  l'impiego in una vasta gamma di scenari sopratutto in contesti IoT. Il Wi-Fi garantisce la copertura di una zona piuttosto ampia ed una diretta connessione ad Internet tramite l'utilizzo di un router Wi-Fi, mentre il Bluetooth consente lo scambio di informazioni su un'area nettamente inferiore ma con consumi nettamente più bassi. 
+L'integrazione di Bluetooth, Bluetooth Low Energy e Wi-Fi garantiscono l'impiego in una vasta gamma di scenari soprattutto in contesti IoT. Il Wi-Fi garantisce la copertura di una zona piuttosto ampia ed una diretta connessione ad Internet tramite l'utilizzo di un router Wi-Fi, mentre il Bluetooth consente lo scambio di informazioni su un'area nettamente inferiore ma con consumi nettamente più bassi.
+
 Il ridotto consumo energetico è garantito grazie a specifiche funzioni, tra cui la gestione dei clock e il ridimensionamento dinamico della potenza.\\
 
 \noindent Una scheda di sviluppo dotata di chip ESP32, per poter funzionare necessita di alcuni componenti esterni a tale chip: una memoria flash (in cui sono memorizzati il firmware e i dati), un modulo per il Real Time Clock (RTC), un'antenna e alcuni componenti passivi.\\
-Sul mercato, si trovano diverse tipologie di circuiti stampati personalizzati con su integrato il chip ESP32. Oltre al chip tale board sono dotate di appositi moduli tra l'altro estendibili, grazie al numero elevato di PIN I/O i quali consentono di sviluppare progetti sempre più complessi.\\
+Sul mercato, si trovano diverse tipologie di circuiti stampati personalizzati con su integrato il chip ESP32. Oltre al chip tali board sono dotate di appositi moduli tra l'altro estendibili, grazie al numero elevato di PIN I/O i quali consentono di sviluppare progetti sempre più complessi.\\
 Tali schede montano uno stabilizzatore di tensione che permette la corretta alimentazione dei moduli, il convertitore \texttt{USB-UART} e i tasti \texttt{RESET} e \texttt{FLASH} che semplificano il processo di programmazione. \\
 Esistono diversi firmware per gestire questi chip, quello utilizzato in tale circostanza risulta essere il firmware ufficiale, ovvero quello rilasciato da \texttt{Espressif} e consente la comunicazione con il modulo attraverso dei comandi AT. % comandi AT -> particolari stringhe utilizzare per comunicare con diversi dispositivi elettronici.
-Un firmware alternativo, di tutto rilievo, è chiamato NodeMCU ed è basato su Lua, un linguaggio di programmazione dinamico e veloce simile al Python.\\
+Un firmware alternativo, di tutto rilievo, è chiamato NodeMCU ed è basato su Lua, un linguaggio di programmazione dinamico e veloce simile al Python.
 
-\noindent In base alle necessità richieste dal seguente progetto, ovvero poter utilizzare contemporaneamente lo stack Wi-Fi e BLE, sono stati utilizzati dispositivi \textit{ESP32-WROVER} dotati di una memoria supplementare rispetto ai dispositivi \textit{ESP32-WROOM} maggiormente diffusi.\\
-Nello specifico ESP32-WROVER presenta una memoria Flash SPI di 4 MB ed una Pseudo Static RAM (PSRAM) aggiuntiva di 8 MB.
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width = 0.5\textwidth]{images/esp32_wrover.png}
+    \includegraphics[width = 0.4\textwidth]{images/esp32_wrover.png}
     \caption{ESP32 WROVER}
     \label{fig:esp32_wrover}
 \end{figure}
 
+\noindent In base alle necessità richieste dal seguente progetto, ovvero poter utilizzare contemporaneamente lo stack Wi-Fi e BLE, sono stati utilizzati dispositivi \textit{ESP32-WROVER} dotati di una memoria supplementare rispetto ai dispositivi \textit{ESP32-WROOM} maggiormente diffusi.\\
+Nello specifico ESP32-WROVER presenta una memoria Flash SPI di 4 MB ed una Pseudo Static RAM (PSRAM) aggiuntiva di 8 MB.
+
 \subsubsection{Ambiente di sviluppo}
 Per sviluppare un applicativo eseguibile su tali dispositivi la scelta può ricadere su diversi ambienti di sviluppo. Di seguito una rapida descrizione di \texttt{Arduino IDE}, molto semplice da utilizzare, e il framework messo a disposizione da Espressif (\texttt{ESP-IDF}) utilizzato in questo contesto applicativo.\\
-Arduino IDE è un framework open-source che consente di avere un approccio piuttosto semplice per la programmazione dei moduli e per l'upload del codice sulle board compatibili con l'IDE. Prima di procedere con la compilazione del codice da copiare sulla propria board, è fondamentale aggiungere le apposite librerie al fine di rendere la board compatibile, nel caso in cui non lo era.\\
+Arduino IDE \cite{arduino18} è un framework open-source che consente di avere un approccio piuttosto semplice per la programmazione dei moduli e per l'upload del codice sulle board compatibili con l'IDE. Prima di procedere con la compilazione del codice da copiare sulla propria board, è fondamentale aggiungere le apposite librerie al fine di rendere la board compatibile, nel caso in cui non lo era.\\
 % http://wiring.org.co/
 Utilizzando Arduino IDE è possibile creare un applicativo (sketch) per il proprio microcontrollore sfruttando una libreria software del progetto \textit{Wiring}. Wiring oltre ad essere una piattaforma di prototipazione open-source, fornisce delle regole per la strutturazione del codice relativo alle comuni procedure di input e di output utilizzando un linguaggio di programmazione derivato dal \texttt{C++}.\\
 % https://en.wikipedia.org/wiki/Arduino_IDE
@@ -59,7 +61,7 @@ Una volta creato lo sketch e configurato l'IDE per supportare la board in posses
 
 % http://www.lucadentella.it/2016/12/12/esp32-2-lambiente-di-sviluppo/
 % https://github.com/espressif/esp-idf
-\noindent L'alternativa ad Arduino IDE per programmare i chip in dotazione è Espressif IoT Development Framework (ESP-IDF), rilasciata proprio dalla casa produttrice e indicata come il framework ufficiale di prototipazione per tali board.
+\noindent L'alternativa ad Arduino IDE per programmare i chip in dotazione è Espressif IoT Development Framework (ESP-IDF) \cite{esp32doc}, rilasciata proprio dalla casa produttrice e indicata come il framework ufficiale di prototipazione per tali board.
 Come il tool precedente, anche esso risulta essere open-source e cross-platform (disponibile per Windows, Linux e Mac OS), anche se il suo utilizzo è sensibilmente più complicato e qualsiasi operazione deve essere svolta tramite console.\\
 Il framework ESP-IDF è reperibile presso il repository ufficiale \href{https://github.com/espressif/esp-idf}{GitHub} di Espressif: \url{https://github.com/espressif/esp-idf}. Dopo aver scaricato, installato e configurato l'intero ambiente (variabili d'ambiente, toolchain per compilare il codice, tools per la creazione di un'applicazione) e possibile finalmente implementare un'applicazione eseguibile da un dispositivo Espressif.\\
 Come indicato dalla documentazione ufficiale, le operazione relative ad ogni progetto da eseguire sui predetti dispositivi sono indicate in seguito e prevedono sempre l'utilizzo dell'istruzione \texttt{idf.py}. Le seguenti istruzioni dovranno essere eseguite solo dopo essersi posizionati nella directory del progetto da gestire.
@@ -75,7 +77,7 @@ Come indicato dalla documentazione ufficiale, le operazione relative ad ogni pro
     \item \texttt{idf.py -p PORT monitor}: consente di visualizzare l'output fornito dal dispositivo ESP32 sulla porta seriale che lo connette al PC (\texttt{PORT} rimpiazzato sempre con la corrispondente porta seriale).
 \end{enumerate}
 
-\noindent I comandi elencati rappresentano solo un minima parte tra tutti quelli possibili. Per accedere all'intera lista di istruzioni che consentono la configurazione di un'applicazione è possibile utilizzare il comando \texttt{idf.py ---help}. Tramite l'istruzione \texttt{--help} è possibile individuare anche le opzioni relative ad uno specifico comando (\texttt{idf.py <command> ---help}, ad esempio \texttt{idf.py monitor ---help}). In più è concesso anche combinare più comandi in una sola istruzione (\texttt{idf.py -p PORT clean flash monitor}).\\
+\noindent I comandi elencati rappresentano solo una minima parte tra tutti quelli possibili. Per accedere all'intera lista di istruzioni che consentono la configurazione di un'applicazione è possibile utilizzare il comando \texttt{idf.py ---help}. Tramite l'istruzione \texttt{--help} è possibile individuare anche le opzioni relative ad uno specifico comando (\texttt{idf.py <command> ---help}, ad esempio \texttt{idf.py monitor ---help}). In più è concesso anche combinare più comandi in una sola istruzione (\texttt{idf.py -p PORT clean flash monitor}).\\
 Nel caso in cui è stata eseguita una modifica ai parametri di configurazione, è possibile eseguire direttamente l'istruzione \texttt{idf.py flash} che si occuperà per prima cosa di compilare il progetto qualora un file sorgente risultasse modificato ed in seguito provvederà a fare l'upload sul dispositivo connesso tramite la porta seriale specificata.\\
 
 \noindent Il seguente ambiente di sviluppo fornisce degli esempi da cui partire per la creazione di un applicativo che utilizza le tecnologie supportate. Partendo dall'esempio messo a disposizione in merito a Bluetooth Mesh è iniziato a prender vita il seguente progetto di tesi. \\
@@ -90,7 +92,7 @@ Con il seguente lavoro, per adoperare i due stack protocollari sul medesimo nodo
 % https://exploreembedded.com/wiki/Hello_World_with_ESP32_Explained
 % https://freertos.org/
 % https://aws.amazon.com/it/freertos/
-Il framework \texttt{ESP-IDF} utilizza un sistema operativo definito appositamente per microcontrollori, Real-Time Operating System (FreeRTOS), in grado di sfruttare al meglio i due processori e gestire le numerose periferiche integrate di un ESP32. Distribuito gratuitamente con licenza open-source, FreeRTOS include un kernel in grado di svolgere operazioni semplici e funzionali eseguibile su dispositivi a basso consumo ed offre un insieme sempre crescente di librerie adatte in molteplici contesti industriali e per svariate applicazioni. Questo sistema operativo è sviluppato dando una particolare enfasi all'affidabilità e alla facilità di utilizzo.\\
+Il framework \texttt{ESP-IDF} utilizza un sistema operativo definito appositamente per microcontrollori, Real-Time Operating System (FreeRTOS) \cite{barry2016mastering, FreeRTOS_site}, in grado di sfruttare al meglio i due processori e gestire le numerose periferiche integrate di un ESP32. Distribuito gratuitamente con licenza open-source, FreeRTOS include un kernel in grado di svolgere operazioni semplici e funzionali eseguibili su dispositivi a basso consumo ed offre un insieme sempre crescente di librerie adatte in molteplici contesti industriali e per svariate applicazioni. Questo sistema operativo è sviluppato dando una particolare enfasi all'affidabilità e alla facilità di utilizzo.\\
 Non bisogna pensarlo come un sistema operativo di un PC, ma bensì un sistema operativo per sistemi embedded il cui compito è quello di offrire, tramite un proprio scheduler, il multitasking, ovvero la possibilità di pianificare ed eseguire più task contemporaneamente.
 FreeRTOS offre un sistema real-time che consente la pianificazione dei task in modo deterministico, difatti consente al programmatore di definire la priorità dei propri task e lo scheduler utilizza proprio tali valori per definire la sequenza di esecuzione.\\
 I vantaggi ed i motivi per cui viene utilizzato FreeRTOS in dispositivi con bassi consumi energetici sono i seguenti:
@@ -109,24 +111,24 @@ I vantaggi ed i motivi per cui viene utilizzato FreeRTOS in dispositivi con bass
 
 \subsection{nRF Mesh}
 % https://www.nordicsemi.com/Software-and-tools/Development-Tools/nRF-Mesh
-Un aspetto fondamentale per una rete mesh è proprio l'iter relativo alla sua creazione, ovvero il processo di provisioning (Sezione \ref{sec:provisioning}). In questa circostanza l'intero processo viene svolto adoperando uno smartphone con su installata un'apposita applicazione, disponibile sia per Android sia per iOS, in grado di semplificare determinate operazioni. L'applicazione in questione è nRF Mesh rilasciata dalla Nordic Semiconductor ASA con lo scopo di portare i naturali benefici dell'utilizzo di uno smartphone nelle attività di configurazione e controllo di una rete Bluetooth Mesh.\\
+Un aspetto fondamentale per una rete mesh è proprio l'iter relativo alla sua creazione, ovvero il processo di provisioning (Sezione \ref{sec:provisioning}). In questa circostanza l'intero processo viene svolto adoperando uno smartphone con su installata un'apposita applicazione, disponibile sia per Android sia per iOS, in grado di semplificare determinate operazioni. L'applicazione in questione è nRF Mesh \cite{nRFMesh} rilasciata dalla Nordic Semiconductor ASA con lo scopo di portare i naturali benefici dell'utilizzo di uno smartphone nelle attività di configurazione e controllo di una rete Bluetooth Mesh.\\
 
 Come descritto nella sezione \ref{ch:Ble_mesh} lo standard Bluetooth Mesh opera al di sopra dello standard Bluetooth Low Energy e a tal proposito richiede ulteriori caratteristiche, tra cui quelle messe a disposizione dalla seguente applicazione, ovvero: 
 \begin{itemize}
-    \item \textit{Controllo di un nodo}: supporta la gestione di un modello GenericOnOff Server.
+    \item \textit{Controllo di un nodo}: supporta la gestione di un modello Generic OnOff Server.
     \item \textit{Provisioning}: supporta l'autenticazione OOB di tipo numerico e l'autenticazione Static (ovvero senza interazione dell'utente) e si preoccupa di assegnare in modo automatico gli indirizzi unicast agli elementi di un nodo.
     \item \textit{Configurazione}: consente di impostare le chiavi di applicazione o generarle casualmente, creare indirizzi di tipo group e consentire la sottoscrizione dei nodi a tali indirizzi.
 \end{itemize}
 Inoltre, consente di eseguire appositi comandi di configurazione relativi alla rete mesh, tra cui definire un pubblication address per un modello, aggiungere o rimuovere la sottoscrizione di un elemento ad un determinato indirizzo, esplorare le caratteristiche di un nodo, etc..\\
-L'aspetto rilevante e il motivo per cui è stata utilizzata nel seguente progetto riguarda le operazioni di provisioning e la possibilità di comunicare con qualsiasi tipo di dispositivo BLE in grado di supportare lo standard Bluetooth Mesh.
+L'aspetto rilevante e il motivo per cui è stata utilizzata nel seguente progetto riguardano le operazioni di provisioning e la possibilità di comunicare con qualsiasi tipo di dispositivo BLE in grado di supportare lo standard Bluetooth Mesh.
 
-\subsection{Router Wi-Fi}
+\subsection{Access Point}
 Al fine di consentire la comunicazione attraverso la tecnologia di supporto è stato necessario introdurre un dispositivo in grado di gestire il processo di instradamento dei pacchetti. A tal proposito è stato utilizzato uno smartphone sfruttando la funzionalità di ``\texttt{Router Wi-Fi}''. \\
-Ai fini del progetto non è necessario che i dispositivi siano connessi ad Internet, difatti tale modalità viene utilizzata solo per consentire una comunicazione alternativa ai nodi della rete (figura \ref{fig:ruoli_rete_mesh}).
+Ai fini del progetto non è necessario che i dispositivi siano connessi ad Internet, difatti tale modalità viene utilizzata solo per consentire una comunicazione alternativa ai nodi appartenenti alla rete (figura \ref{fig:ruoli_rete_mesh}).
 
 \section{Implementazione Nodi}
 La realizzazione della rete mesh così come descritto nel capito di \nameref{ch:progettazione} (configurata come in figura \ref{fig:ruoli_rete_mesh}) ha previsto la definizioni di alcuni ruoli (Client e Server) essenziali per lo standard Bluetooth Mesh, il che ha comportato implementazioni leggermente differenti e l'impiego di due stack protocollari ben distinti.
-Il ruolo di client è rilegato al dispositivo indicato come \texttt{Switch}, mentre il ruolo di Server è rilegato ai dispositivi \texttt{Relay-1}, \texttt{Relay-2}, \texttt{Node-3}.\\
+Il ruolo di client è rilegato al dispositivo indicato come \texttt{Switch}, mentre il ruolo di Server è rilegato ai dispositivi \texttt{Relay-1}, \texttt{Relay-2}, \texttt{Node-3}.
 
 \begin{figure}[!ht]
     \centering
@@ -135,7 +137,7 @@ Il ruolo di client è rilegato al dispositivo indicato come \texttt{Switch}, men
     \label{fig:ruoli_rete_mesh}
 \end{figure}
 
-\noindent Durante la fase di implementazione mi sono servito dell'ambiente di sviluppo \texttt{ESP-IDF}, poiché consente l'utilizzo di apposite librerie messa a disposizione da Espressif per la creazione di un applicativo utilizzando la tecnologia Bluetooth Mesh (la community di Espressif ha iniziato a lavorare al seguente standard solo a gennaio 2019). Al fine di evitare problematiche durante la fase implementativa in merito alle possibili modifiche giornaliere apportate dagli sviluppatori a tali librerie ho preferito focalizzare il lavoro utilizzando la versione \texttt{ESP-IDF v4.0-beta2}.\\ 
+\noindent Durante la fase di implementazione mi sono servito dell'ambiente di sviluppo \texttt{ESP-IDF}, poiché consente l'utilizzo di apposite librerie messe a disposizione da Espressif per la creazione di un applicativo utilizzando la tecnologia Bluetooth Mesh (la community di Espressif ha iniziato a lavorare al seguente standard solo a gennaio 2019). Al fine di evitare problematiche durante la fase implementativa in merito alle possibili modifiche giornaliere apportate dagli sviluppatori a tali librerie ho preferito focalizzare il lavoro utilizzando la versione \texttt{ESP-IDF v4.0-beta2}.\\ 
 
 \noindent L'implementazione che consente ad un nodo di essere integrato all'interno di una rete mesh e quindi comprende l'intero processo di provisioning risulta essere identica per entrambe le tipologie di nodi (ereditata dall'esempio messo a disposizione da Espressif). Le due tipologie di ruoli, oltre a ciò, presentano un'altra caratteristica implementativa in comune, ovvero il numero di elementi di cui risultano composti. Ogni nodo è costituito da due elementi rappresentati tramite \texttt{LED} ed implementati per mezzo del modello \texttt{Generic Level Server Model}, il quale permette di comunicare l'intensità dell'illuminazione attraverso dei messaggi definiti dal \texttt{Generic Level Model}. A questi due \texttt{LED} viene aggiunto un terzo nel momento in cui viene utilizzata anche la tecnologia Wi-Fi.\\
 I nodi \texttt{Relay-1}, \texttt{Relay-2} e \texttt{Node-3} presentano il medesimo codice, ad eccezion fatta per la feature \textit{relay}.\\
@@ -161,7 +163,7 @@ In questa sezione verrà mostrata l'implementazione del comportamento del nodo c
 \noindent Dopo avere eseguito la configurazione delle tecnologie da utilizzare per la tipologia di approccio scelto, la prima operazione eseguita riguarda l'inizializzazione del \texttt{UART} e la definizione di un task specifico in grado di far dialogare i due dispositivi tramite porta seriale.\\
 
 \noindent L'inizializzazione del \texttt{UART} avviene invocando la funzione \texttt{uart\_init} la quale prevede per prima cosa la configurazione del controller passando la struct \texttt{uart\_config\_t} (specificando la velocità di trasmissione, il numero di bit per ogni parola, l'utilizzo o meno di un bit di parità e la tipologia del controllo di flusso) come secondo parametro del metodo \texttt{uart\_param\_config} e come primo parametro il numero relativo al controller scelto. \\
-Dopodiché si procede con la configurazione dei \texttt{PIN} ed infine si passa all'installazione del driver (\texttt{uart\_driver\_install}), andando a specificare oltre al numero del controller anche la dimensione dei buffer. L'inclusione del driver ``\texttt{driver/uart.h}'' consente di semplificare l'utilizzo di tale controller.\\
+Dopodiché si procede con la configurazione dei \texttt{PIN} ed infine si passa all'installazione del driver (\texttt{uart\_driver\_install}), andando a specificare oltre al numero del controller anche la dimensione dei buffer. L'inclusione del driver ``\texttt{driver/uart.h}'' consente di semplificare l'utilizzo di tale controller.
 
 \begin{lstlisting}[language=C, caption= Configurazione e installazione driver \texttt{UART}]
 void uart_init() {
@@ -179,7 +181,7 @@ void uart_init() {
 }
 \end{lstlisting}
 
-\noindent L'utilizzo del \texttt{UART} avviene attraverso la definizione di un task (attività) specifico utilizzando il metodo \texttt{xTaskCreate}. Questo metodo richiede come parametri: il puntatore alla funzione che contiene il codice del task\footnote{I task devono essere implementati per non tornare mai}, il nome da assegnare al task (utile in fase di debugging), la dimensione dello stack di memoria (in words non in byte), i valori da passare come parametri alla funzione, la priorità con cui il task verrà eseguito e il puntatore (opzionale) per consentire la gestione del task tramite una funzione esterna. Una volta creato un task, lo scheduler di FreeRTOS lo manda in esecuzione in base alla priorità indicata.\\
+\noindent L'utilizzo del \texttt{UART} avviene attraverso la definizione di un task (attività) specifico utilizzando il metodo \texttt{xTaskCreate}. Questo metodo richiede come parametri: il puntatore alla funzione che contiene il codice del task\footnote{I task devono essere implementati per non tornare mai}, il nome da assegnare al task (utile in fase di debugging), la dimensione dello stack di memoria (in words non in byte), i valori da passare come parametri alla funzione, la priorità con cui il task verrà eseguito e il puntatore (opzionale) per consentire la gestione del task tramite una funzione esterna. Una volta creato un task, lo scheduler di FreeRTOS lo manda in esecuzione in base alla priorità indicata.
 
 \begin{lstlisting}[language=C, caption= Inizializzazione e definizione del task per utilizzare il \texttt{UART}]
 void start_serial_communication(){
@@ -189,7 +191,8 @@ void start_serial_communication(){
 \end{lstlisting}
 
 \noindent La funzione (\texttt{uart\_task}) passata come parametro al metodo \texttt{xTaskCreate} contiene il codice che permette al nodo di essere in ascolto su una porta seriale e quindi poter ricevere un'istruzione. \\
-Per acquisire i dati comunicati tramite porta seriale dal PC si utilizza l'istruzione \texttt{uart\_read\_bytes}. Una volta ricevuta la regola, il nodo procede, per prima cosa, a comprenderla (\texttt{count\_tokens}, \texttt{str\_split}) e successivamente ad attuarla adoperando la funzione \texttt{command\_received}.\\
+Per acquisire i dati comunicati tramite porta seriale dal PC si utilizza l'istruzione \texttt{uart\_read\_bytes}. Una volta ricevuta la regola, il nodo procede, per prima cosa, a comprenderla (\texttt{count\_tokens}, \texttt{str\_split}) e successivamente ad attuarla adoperando la funzione \texttt{command\_received}.
+
 \begin{lstlisting}[language=C, caption= acquisizione dati attraverso il \texttt{UART}]
 static void uart_task(void *pvParameters) {
     uint8_t *data_uart = calloc(1, UART_BUF_SIZE);
@@ -214,7 +217,7 @@ static void uart_task(void *pvParameters) {
 \end{lstlisting}
 
 \noindent La trasmissione di informazioni dal nodo Client al PC avviene per mezzo del dispositivo \texttt{UART} invocando l'istruzione \texttt{uart\_write\_bytes}. Tramite questa funzione si copia un array di caratteri nel buffer del driver e sarà quest'ultimo ad occuparsi, in modo autonomo, di gestire la comunicazione con il controller e l'effettivo invio dei dati. La funzione utilizzata prevede i seguenti parametri: il controller scelto, l'array di caratteri e la rispettiva dimensione. \\
-La funzione riportata in seguito, \texttt{uart\_trasmitting}, prende in input un array di caratteri e dopo aver calcolato la dimensione procede a scrivere i dati nel buffer, così come descritto in precedenza.\\
+La funzione riportata in seguito, \texttt{uart\_trasmitting}, prende in input un array di caratteri e dopo aver calcolato la dimensione procede a scrivere i dati nel buffer, così come descritto in precedenza.
 
 \begin{lstlisting}[language=C, caption= operazione di trasmissione dati tramite lo strumento \texttt{UART}]
 void uart_trasmitting(const char *event_s) {
@@ -227,7 +230,7 @@ void uart_trasmitting(const char *event_s) {
 \label{subsub:parametri_testbed}
 Il comportamento da assumere per tale tipologia di nodo avviene attraverso una regola comunicata per mezzo di comunicazione seriale. Il nodo è in grado di acquisire tale informazione per mezzo del dispositivo \texttt{UART} (sopra descritto). L'utente, invece, può inserire tale informazione (input da tastiera) grazie ad uno script \texttt{Python} (\ref{sub:comunicazione_seriale}) in esecuzione sul PC. \\
 
-\noindent Di seguito sono riportate le istruzioni comprensibili dal nodo client, al fine di procedere o con l'invio di un semplice messaggio utilizzando una delle tecnologie supportate oppure con l'avvio della del testbed.
+\noindent Di seguito sono riportate le istruzioni comprensibili dal nodo client, al fine di procedere o con l'invio di un semplice messaggio utilizzando una delle tecnologie supportate oppure con l'avvio del testbed.
 
 \begin{itemize}
     \item la regola \texttt{``@,addr:0x0004''} (tecnologia \texttt{BLE}) impiegata per procedere all'invio di un messaggio di tipo \texttt{GET} all'indirizzo specificato.
@@ -242,7 +245,7 @@ Il comportamento da assumere per tale tipologia di nodo avviene attraverso una r
 \noindent Le prime quattro regole servono esclusivamente a verificare che tutto sia stato configurato correttamente, infatti consentono di inviare un semplice messaggio contenente le informazioni indicate dal campo \texttt{level}, mentre la quinta regola consente di configurare i parametri necessari per il test ed avviare la simulazione. L'indirizzo di destinazione, assegnato durante la fase di provisioning, identificata in modo univoco l'elemento presente su uno dei nodi della rete a cui risulta essere destinato il messaggio (espresso sia con \texttt{0x0004} o con \texttt{4}).\\
 
 \noindent L'impiego del \texttt{UART} in fase trasmissiva consente di comunicare uno dei seguenti eventi (invio, ricezione, errore del messaggio) verificati sul nodo, i quali consentono al termine del testbed di creare un file di log su cui si basano le successive analisi. L'array di caratteri comunicato può essere descritto semplicemente come una stringa costituita dai seguenti tre campi: \texttt{event} (indica il tipo di evento accaduto), \texttt{level} (corrisponde all'identificativo del messaggio) e \texttt{TTL} (indica il valore \textit{time-to-live} contenuto nel messaggio (in questo contesto compreso tra 0 e 3).\\
-La costruzione della suddetta stringa avviene comunicando i tre array di caratteri alla seguente funzione, \texttt{event\_reporting}. Una volta concatenati i dati ricevuti procede con la comunicazione al PC attraverso il metodo descritto in precedenza, ovvero \texttt{uart\_trasmitting}. Tale funzione prevede un quarto parametro che consente di mostrare sulla console (accessibile con il comando \texttt{idf.py -p PORT monitor}) l'evento verificatosi utilizzando apposite \texttt{macro} messe a disposizione dalla libreria \texttt{esp\_log.h}.\\
+La costruzione della suddetta stringa avviene comunicando i tre array di caratteri alla seguente funzione, \texttt{event\_reporting}. Una volta concatenati i dati ricevuti procede con la comunicazione al PC attraverso il metodo descritto in precedenza, ovvero \texttt{uart\_trasmitting}. Tale funzione prevede un quarto parametro che consente di mostrare sulla console (accessibile con il comando \texttt{idf.py -p PORT monitor}) l'evento verificatosi utilizzando apposite \texttt{macro} messe a disposizione dalla libreria \texttt{esp\_log.h}.
 
 \begin{lstlisting}[language=C, caption= costruzione stringa da inviare al PC tramite \texttt{uart\_trasmitting}]
 void event_reporting(char *status, char *level, char *ttl, uint8_t show_log) {
@@ -305,7 +308,7 @@ Contrariamente, l'altra funzione messa a disposizione da \texttt{FreeRTOS} (\tex
 
 \noindent Indipendentemente dalla funzione utilizzata, \texttt{FreeRTOS} mette in pausa il task per un numero di ticks specificati come parametro. La constante \texttt{portTICK\_PERIOD\_MS} definisce la durata, in millisecondi, di un tick. Il numero di ticks equivalenti al valore di delay comunicato, espresso in millisecondi, si ottiene dividendo tale valore per la costante \texttt{portTICK\_PERIOD\_MS}.\\
 
-\noindent L'operazione di \textit{invio} è caratterizzata dall'invio effettivo del messaggio Bluetooth Mesh, \texttt{send\_message\_BLE}, e dalla segnalazione di tale evento al PC avvalendosi della funzione \texttt{event\_reporting}. La funzione \texttt{send\_message\_BLE} richiede rispettivamente: l'indirizzo del destinatario (\texttt{rule.addr}), la tipologia di messaggio inviato (\texttt{LEVEL\_SET\_UNACK}), l'identificativo del messaggio nonché il valore da comunicare al client (\texttt{level}) e l'impiego o non impiego del metodo di conferma implementato dallo standard Bluetooth Mesh (\texttt{rule.ack}). Come indicato nel capitolo \nameref{ch:progettazione}, è stato definito un metodo di conferma personalizzato (descritto nella sottosezione \nameref{sub:implementazione server}) poiché quello implementato dallo standard non consente di valutare il comportamento della rete con un carico di lavoro elevato.\\
+\noindent L'operazione di \textit{invio} è caratterizzata dall'invio effettivo del messaggio Bluetooth Mesh, \texttt{send\_message\_BLE}, e dalla segnalazione di tale evento al PC avvalendosi della funzione \texttt{event\_reporting}. La funzione \texttt{send\_message\_BLE} richiede rispettivamente: l'indirizzo del destinatario (\texttt{rule.addr}), la tipologia di messaggio inviato (\texttt{LEVEL\_SET\_UNACK}), l'identificativo del messaggio nonché il valore da comunicare al client (\texttt{level}) e l'impiego o non impiego del metodo di conferma implementato dallo standard Bluetooth Mesh (\texttt{rule.ack}). Come indicato nel capitolo \nameref{ch:progettazione}, è stato definito un metodo di conferma personalizzato (descritto nella sottosezione \nameref{sub:implementazione server}) poiché quello implementato dallo standard non consente di valutare il comportamento della rete con un carico di lavoro elevato.
 
 \begin{lstlisting}[language=C, caption= evento di invio di un messaggio Bluetooth Mesh]
 void execute_rule() {
@@ -327,9 +330,9 @@ void execute_rule() {
 }
 \end{lstlisting}
 
-\noindent L'operazione di \textit{ricezione} di un messaggio viene innescata attraverso gli eventi definiti dallo stack Bluetooth Mesh. Poiché la gestione del messaggio di risposta sul nodo server è stata personalizzata (per i motivi descritti nel capitolo \nameref{ch:progettazione}), l'evento che sancisce la conferma di ricezione del messaggio corrisponde a \texttt{ESP\_BLE\_MESH\_GENERIC\_CLIENT\_PUBLISH\_EVT}. Al verificarsi di tale evento, si procede innanzitutto definendo due array di caratteri per convertire in stringa i parametri \texttt{TTL} e \texttt{level} contenuti nel messaggio ricevuto, e poi con la comunicazione dell'evento al PC.\\
+\noindent L'operazione di \textit{ricezione} di un messaggio viene innescata attraverso gli eventi definiti dallo stack Bluetooth Mesh. Poiché la gestione del messaggio di risposta sul nodo server è stata personalizzata (per i motivi descritti nel capitolo \nameref{ch:progettazione}), l'evento che sancisce la conferma di ricezione del messaggio corrisponde a \texttt{ESP\_BLE\_MESH\_GENERIC\_CLIENT\_PUBLISH\_EVT}. Al verificarsi di tale evento, si procede innanzitutto definendo due array di caratteri per convertire in stringa i parametri \texttt{TTL} e \texttt{level} contenuti nel messaggio ricevuto, e poi con la comunicazione dell'evento al PC.
 
-\begin{lstlisting}[language=C, caption= evento di ricezione e errore in fase d'invio]
+\begin{lstlisting}[language=C, caption= evento di ricezione ed errore in fase d'invio]
 switch (event) {
     ...
     case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT: {
@@ -356,7 +359,7 @@ switch (event) {
 }
 \end{lstlisting}
 
-\noindent L'evento di \textit{errore} è individuato con il verificarsi dell'evento \texttt{ESP\_BLE\_MESH\_GENERIC} \texttt{\_CLIENT\_SET\_STATE\_EVT}.\\ All'interno di tale evento è stato necessario analizzare l'\texttt{opcode} del messaggio per determinare se si tratta effettivamente di un'errore. L'errore riscontrato si verifica nel momento in cui il buffer di trasmissione del livello di rete risulta essere pieno.\\
+\noindent L'evento di \textit{errore} è individuato con il verificarsi dell'evento \texttt{ESP\_BLE\_MESH\_GENERIC} \texttt{\_CLIENT\_SET\_STATE\_EVT}.\\ All'interno di tale evento è stato necessario analizzare l'\texttt{opcode} del messaggio per determinare se si tratta effettivamente di un errore. L'errore riscontrato si verifica nel momento in cui il buffer di trasmissione del livello di rete risulta essere pieno.\\
 Con l'approccio Bluetooth Mesh, al verificarsi di tale errore viene solo eseguita una comunicazione al PC attraverso l'istruzione \texttt{event\_reporting}, ma non si attua nessuna strategia per ripetere l'operazione non appena il buffer risulta nuovamente libero.
 
 \subsubsection{Approccio BLE Mesh più Wi-Fi}
@@ -367,7 +370,7 @@ In merito all'uso della tecnologia Bluetooth Mesh resta tutto invariato ad eccez
 \noindent In questo caso, dopo aver inizializzato ed avviato il task per consentire la comunicazione tra dispositivo e PC, è stata definita una socket al fine di instaurare una comunicazione basata sulla tecnologia 802.11 (pila TCP/IP) all’interno della rete. Gli elementi necessari per il funzionamento di una comunicazione tramite socket sono: l'indirizzo IP e il numero di porta. Tali elementi consento di distinguere in maniera univoca le singole richieste all'interno della rete.\\
 La tipologia di socket utilizzata in questo contesto è \texttt{Datagram Socket} il che consente una comunicazione basata sul protocollo UDP. Vale a dire che l'invio dei messaggi avviene mediante il trasferimento di datagrammi senza dover garantire il corretto ordine d'arrivo, la correttezza dell'informazione e soprattutto senza che client e server debbano instaurare una vera e propria connessione, ma il client comunica direttamente con il server, quando vuole.\\
 
-\noindent La definizione della socket avviene tramite il metodo \texttt{socket} messo a disposizione dalla libreria \texttt{lwip/sockets.h} in cui bisogna specificare il dominio (\texttt{AF\_INET}), il tipo (\texttt{SOCK\_DGRAM}) e il protocollo (\texttt{IPPROTO\_IP}). In cui \texttt{AFF\_INET} specifica l'impiego di un indirizzo \texttt{ip} di 32 bit e un numero di porta a 16 bit, \texttt{SOCK\_DGRAM} indica la definizione di una \texttt{Datagram Socket} e \texttt{IPPROTO\_IP} indica l'impiego del protocollo \texttt{ip} per l'invio e la ricezione dei messaggi.\\
+\noindent La definizione della socket avviene tramite il metodo \texttt{socket} messo a disposizione dalla libreria \texttt{lwip/sockets.h} in cui bisogna specificare il dominio (\texttt{AF\_INET}), il tipo (\texttt{SOCK\_DGRAM}) e il protocollo (\texttt{IPPROTO\_IP}). In cui \texttt{AFF\_INET} specifica l'impiego di un indirizzo \texttt{ip} di 32 bit e un numero di porta a 16 bit, \texttt{SOCK\_DGRAM} indica la definizione di una \texttt{Datagram Socket} e \texttt{IPPROTO\_IP} indica l'impiego del protocollo \texttt{ip} per l'invio e la ricezione dei messaggi.
 
 \begin{lstlisting}[language=C, caption= creazione della socket]
 void create_socket() {
@@ -388,7 +391,7 @@ void create_socket() {
 
 \noindent Una volta definita la socket viene avviato il task (\texttt{udp\_client\_receive}) che consente al nodo di poter ricevere messaggi a lui destinati attraverso la tecnologia 802.11, sempre tramite l'istruzione \texttt{xTaskCreate}. In tal caso, alla ricezione di un messaggio il nodo provvede a comunicarlo tempestivamente al PC tramite il metodo \texttt{uart\_trasmitting} in cui viene passato come parametro l'array di caratteri identificante tale evento (le tipologie di stringhe correlate agli eventi comunicati dal nodo client sono descritte nella sottosezione \nameref{subsub:parametri_testbed}). La definizione del seguente task in questo momento consente non solo di ricevere messaggi di tipo \texttt{ip} durante il testbed ma anche quando si impiegano le altre regole precedentemente descritte.\\
 
-\noindent La struttura (denominata buffer) che consente di memorizzare gli identificativi dei messaggi e quindi la gestione dei messaggi in tempo reale risulta implementata mediante una struttura dati di tipo \texttt{coda}. Le operazioni previste per la seguente struttura dati riguardano l'inserimento in coda dell'identificativo del messaggio (\texttt{enQueue}), la due procedure di rimozione, la prima consente di rimuovere un messaggio dalla testa della coda (\texttt{deQueue}), mentre la seconda prevede per primo la ricerca dell'identificativo all'interno della coda ed in seguito, in caso di esito positivo, la rispettiva rimozione (\texttt{remove\_key}). L'operazione \texttt{deQueue} è l'unica che prevede un unico parametro, ovvero la coda, mentre le altre due prevede anche l'identificativo da inserire o rimuovere, a seconda dei casi. Queste due operazioni sono invocate mediante la funzione \texttt{queue\_operation} in base ai parametri ricevuti in input. I parametri necessari riguardano il tipo di operazione (\texttt{`a'} o \texttt{`d'}), la tecnologia del messaggio (\texttt{`b'} o \texttt{`w'}) e l'identificativo. Oltre a gestire le operazioni con la coda, solo ed esclusivamente con l'evento di ricezione di un messaggio Bluetooth prevede ad invocare il metodo \texttt{update\_delay\_buffer} per aggiornare il valore relativo al delay dinamico.\\
+\noindent La struttura (denominata buffer) che consente di memorizzare gli identificativi dei messaggi e quindi la gestione dei messaggi in tempo reale risulta implementata mediante una struttura dati di tipo \texttt{coda}. Le operazioni previste per la seguente struttura dati riguardano l'inserimento in coda dell'identificativo del messaggio (\texttt{enQueue}) e due procedure di rimozione. La prima consente di rimuovere un messaggio dalla testa della coda (\texttt{deQueue}), mentre la seconda prevede per primo la ricerca dell'identificativo all'interno della coda ed in seguito, in caso di esito positivo, la rispettiva rimozione (\texttt{remove\_key}). L'operazione \texttt{deQueue} è l'unica che prevede un unico parametro, ovvero la coda, mentre le altre due prevede anche l'identificativo da inserire o rimuovere, a seconda dei casi. Queste due operazioni sono invocate mediante la funzione \texttt{queue\_operation} in base ai parametri ricevuti in input. I parametri necessari riguardano il tipo di operazione (\texttt{`a'} o \texttt{`d'}), la tecnologia del messaggio (\texttt{`b'} o \texttt{`w'}) e l'identificativo. Oltre a gestire le operazioni con la coda, solo ed esclusivamente con l'evento di ricezione di un messaggio Bluetooth prevede ad invocare il metodo \texttt{update\_delay\_buffer} per aggiornare il valore relativo al delay dinamico.\\
 
 \noindent L'istruzione di \textit{invio} (eseguita sempre all'interno di un loop, come indicato nell'approccio Bluetooth Mesh) prevede, dopo le operazioni di invio del messaggio (\texttt{send\_message\_BLE}) e la comunicazione di tale evento (\texttt{event\_reporting}), l'inserimento dell'identificativo all'interno del buffer (attraverso l'operazione \texttt{enQueue} invocata all'interno della funzione \texttt{queue\_operation} con i parametri impostati come nel blocco di codice che segue). 
 
@@ -428,9 +431,9 @@ void send_message_BLE(uint16_t addr, uint32_t opcode, int16_t level) {
 \noindent L'operazione di \textit{ricezione} di un messaggio tramite la tecnologia Bluetooth Mesh prevede la comunicazione dell'evento, così come avviene con l'approccio descritto in precedenza, ma a tale operazione segue la rimozione dal buffer dell'identificativo corrispondente al messaggio ricevuto (\texttt{remove\_key}).
 
 \paragraph{Algoritmo dinamico} 
-L'algoritmo dinamico, che consente l'impiego della tecnologia Wi-Fi all'interno del testbed, prevede due fasi: durante la prima fase resta in uno stato dormiente, denominato transiente iniziale, mentre durante la seconda provvede, all'interno di un loop, utilizzando utilizzando la medesima frequenza specificata per il seguente testbed, l'invio di messaggi utilizzando l'identificativo estratto dalla coda mediante la funzione \texttt{deQueue}.\\
-La prima fase ha una durata di $40 s$ a partire dall'invio del primo messaggio del testbed e tale tempo viene verificato in termini di messaggi inviati. Ad esempio se la regola impostata prevede l'invio di un messaggio ogni $50 ms$, allora vorrà dire che la condizione dei $40 s$ di attesa scadrà a seguito dell'invio del ottocentesimo pacchetto ($40 s\div 50 ms = 800$). In tale circostanza, $800$ coincide proprio con il valore contenuto della variabile \texttt{delay\_buff\_init}.\\
-Verificata tale condizione si passa quindi alla seconda fase, la quale garantisce la possibilità di inviare un messaggio (\texttt{send\_mex\_wifi}) solo se la differenza tra l'identificativo contenuto nel messaggio corrente (\texttt{level\_sent}) e l'identificativo presente in testa alla coda (\texttt{front\_value}) risulta maggiore del delay dinamico (\texttt{delay\_buffer}). Inizialmente il valore dinamico è impostato a $40 s$, adottando sempre il meccanismo di conversione sopra descritto. Solo se risulta soddisfatta la condizione appena descritta è possibile procedere con l'operazione di invio adottando la tecnologia 802.11. La quale prevede: l'estrazione dell'elemento in testa alla coda, l'invio del messaggio con l'identificativo estratto e la segnalazione di tale evento al PC.\\
+L'algoritmo dinamico, che consente l'impiego della tecnologia Wi-Fi all'interno del testbed, prevede due fasi: durante la prima fase resta in uno stato dormiente, denominato transiente iniziale, mentre durante la seconda è previsto, con la medesima frequenza impiegata dalla tecnologia Bluetooth, l'invio di messaggi utilizzando l'identificativo estratto dalla coda mediante la funzione \texttt{deQueue}.\\
+La prima fase ha una durata di $40 s$ a partire dall'invio del primo messaggio del testbed e tale tempo viene verificato in termini di messaggi inviati. Ad esempio, se la regola impostata prevede l'invio di un messaggio ogni $50 ms$, allora vorrà dire che la condizione dei $40 s$ di attesa scadrà a seguito dell'invio dell'ottocentesimo pacchetto ($40 s\div 50 ms = 800$). In tale circostanza, $800$ coincide proprio con il valore contenuto della variabile \texttt{delay\_buff\_init}.\\
+Verificata tale condizione si passa quindi alla seconda fase, la quale garantisce la possibilità di inviare un messaggio (\texttt{send\_mex\_wifi}) solo se la differenza tra l'identificativo contenuto nel messaggio corrente (\texttt{level\_sent}) e l'identificativo presente in testa alla coda (\texttt{front\_value}) risulta maggiore del delay dinamico (\texttt{delay\_buffer}). Inizialmente il valore dinamico è impostato a $40 s$, adottando sempre il meccanismo di conversione sopra descritto. Solo se risulta soddisfatta la condizione appena descritta è possibile procedere con l'operazione di invio adottando la tecnologia 802.11. La quale prevede: l'estrazione dell'elemento in testa alla coda, l'invio del messaggio con l'identificativo estratto e la segnalazione di tale evento al PC.
 
 \begin{lstlisting}[language=C, caption= algoritmo dinamico e invio messaggio tramite Wi-Fi]
 void get_key_and_send_mex() {
@@ -480,13 +483,13 @@ $$ threshold_{t_1} = \beta \times  delay\_estimation $$
 \noindent La formula \texttt{delay\_estimation} consente di calcolare il nuovo \textit{delay} al fine di considerare un pacchetto come perso in base allo stato della rete. In tale formula: 
 \begin{itemize}
     \item $threshold_{t_0}$ esprime il valore attuale della soglia.
-    \item $\alpha$ indica il \textit{learning rate}, ovvero il tasso con cui le nuove informazioni acquisite hanno incidenza sulle quelle vecchie e rappresenta la velocità con cui il modello aggiorna la propria conoscenza in merito allo stato della rete. Un fattore pari a \texttt{0} fa sì che l'agente non impara nulla (sfrutta solo la conoscenza pregressa) ed un fattore pari a \texttt{1} fa sì che l'agente considera solo le informazioni recenti, tralasciando la base di conoscenza pregressa. Eseguendo diverse prove è stato possibile definire il valore $\alpha$ pari a $0.2$. 
+    \item $\alpha$ indica il \textit{learning rate}, ovvero il tasso con cui le nuove informazioni acquisite hanno incidenza su quelle meno recenti e rappresenta la velocità con cui il modello aggiorna la propria conoscenza in merito allo stato della rete. Un fattore pari a \texttt{0} fa sì che l'agente non impara nulla (sfrutta solo la conoscenza pregressa) ed un fattore pari a \texttt{1} fa sì che l'agente considera solo le informazioni recenti, tralasciando la base di conoscenza pregressa. Eseguendo diverse prove è stato possibile definire il valore $\alpha$ pari a $0.2$. 
     \item $R$ indica lo stato attuale della rete (valore ottenuto dalla differenza tra l'identificativo contenuto nell'ultimo messaggio inviato, \texttt{level\_sent}, e l'identificativo contenuto nel pacchetto ricevuto, \texttt{key}).
 \end{itemize}
 \noindent La formula \texttt{$threshold_{t_1}$} consente di stimare il nuovo valore di soglia affinché un pacchetto venga considerato perso in base alla situazione corrente della rete (in termini di latenza).\\
 Per essere più confidenti nell'aggiornare la soglia e quindi evitare scelte troppo affrettate, tale valore (\texttt{delay\_estimation}) viene moltiplicato per una costante, \texttt{$\beta$}. L'introduzione di tale constante consente quindi un'alterazione piuttosto dolce del valore di soglia in modo da poter andare a considerare anche i pacchetti con una latenza leggermente maggiore della media come ``correttamente ricevuti'' e non giudicarli frettolosamente come ``persi''. Lavorando in questo modo, concedendo una soglia leggermente più ampia della latenza attuale della rete, il nodo tende ad evitare l'invio di informazioni ridondanti e così un maggior dispendio di energie necessarie per l'invio di un pacchetto impiegando la tecnologia \texttt{Wi-Fi}. A seguito di diversi test il valore $\beta$ è stato definito pari a \texttt{1.1}.\\
 
-\noindent Il nuovo valore di soglia, che verrà calcolato a seguito della ricezione di un messaggio \texttt{BLE}, risulterà essere compreso in un intervallo di $[1s, 40s]$ espresso in termine di messaggi inviati (rispettivamente indicato dalle variabili \texttt{threshold\_min} e \texttt{threshold\_max}).\\
+\noindent Il nuovo valore di soglia, che verrà calcolato a seguito della ricezione di un messaggio \texttt{BLE}, risulterà essere compreso in un intervallo di $[1s, 40s]$ espresso in termine di messaggi inviati (rispettivamente indicato dalle variabili \texttt{threshold\_min} e \texttt{threshold\_max}).
 
 \begin{lstlisting}[language=C, caption= aggiornamento del valore di soglia]
 void update_delay_threshold(int key) {
@@ -509,7 +512,7 @@ void update_delay_threshold(int key) {
 }
 \end{lstlisting}
 
-\noindent In merito all'operazione di \textit{ricezione} è stato definito un task (\texttt{udp\_client\_receive}) dotato di un loop in cui il nodo risulta sempre in attesa di ricevere un messaggio. Alla sua ricezione si procede semplicemente con la segnalazione dell'evento (utilizzando l'identificativo del messaggio) al PC. Non vengono effettuati controlli sul mittente perché si ha l'assoluta certezza che oltre al nodo Client non c'è nessun altro dopo in grado di inviare messaggi senza prima essere stato contattato dal Client.\\
+\noindent In merito all'operazione di \textit{ricezione} è stato definito un task (\texttt{udp\_client\_receive}) dotato di un loop in cui il nodo risulta sempre in attesa di ricevere un messaggio. Alla sua ricezione si procede semplicemente con la segnalazione dell'evento (utilizzando l'identificativo del messaggio) al PC. Non vengono effettuati controlli sul mittente perché si ha l'assoluta certezza che oltre al nodo Client non c'è nessun altro dopo in grado di inviare messaggi senza prima essere stato contattato dal Client.
 
 \begin{lstlisting}[language=C, caption= metodo di ricezione Wi-Fi]
 static void udp_client_receive(void *pvParameters) {
@@ -534,7 +537,7 @@ static void udp_client_receive(void *pvParameters) {
 \subsection{Implementazione Server}
 \label{sub:implementazione server}
 Come indicato nell'introduzione del seguente capitolo, i due dispositivi \texttt{Relay} e il dispositivo \texttt{Node-3} assumono il ruolo di Server all'interno della rete Bluetooth Mesh poiché consentono ai nodi di tipo Client  di accedere e gestire gli elementi di cui risultano composti. 
-I nodi indicati \texttt{Relay-1} e \texttt{Relay-2} supportano la funzione \textit{relay}, vale a dire che nel momento in cui ricevono un messaggio non destinato a loro, provvedono ad inoltrarlo ai propri vicini. Tale tecnica ha permesso le realizzazione di una rete mesh su un ambiente piuttosto ampio. L'utilizzo di tale feature deve essere abilitata in fase di configurazione del nodo (dal menu ottenibili dal comando \texttt{idf.py menuconfig} e poi attivata in fase di inizializzazione del nodo, attraverso la costante \texttt{ESP\_BLE\_MESH\_RELAY\_ENABLED}.\\ 
+I nodi indicati \texttt{Relay-1} e \texttt{Relay-2} supportano la funzione \textit{relay}, vale a dire che nel momento in cui ricevono un messaggio non destinato a loro, provvedono ad inoltrarlo ai propri vicini. Tale tecnica ha permesso la realizzazione di una rete mesh su un ambiente piuttosto ampio. L'utilizzo di tale feature deve essere abilitata in fase di configurazione del nodo (dal menu ottenibili dal comando \texttt{idf.py menuconfig} e poi attivata in fase di inizializzazione del nodo, attraverso la costante \texttt{ESP\_BLE\_MESH\_RELAY\_ENABLED}.
 
 \begin{lstlisting}[language=C, caption= attivazione feature \textit{relay}]
 static esp_ble_mesh_cfg_srv_t config_server = {
@@ -555,9 +558,9 @@ Di seguito verrà mostrata l'implementazione del comportamento di un nodo Server
 La ricezione di un messaggio Bluetooth su un nodo viene individuata attraverso un evento gestito dalla funzione di callback \texttt{example\_ble\_mesh\_generic\_server\_cb}. Il verificarsi di tale evento consente la gestione del messaggio ricevuto a livello applicativo. Una volta individuata la tipologia di messaggio ricevuto (\texttt{GET}, \texttt{SET} e \texttt{SET\_UNACK}) si procede con l'operazione corrispondente.\\
 Per il messaggio di tipo \texttt{GET} è prevista una risposta contenente lo status del relativo elemento.
 Per il messaggio di tipo \texttt{SET} è prevista l'attuazione del comando ricevuto e l'invio di una conferma di ricezione al mittente.
-Per il messaggio di tipo \texttt{SET\_UNACK} normalmente è prevista solo l'attuazione del comando ricevuto, però ai fine del seguente lavoro è stato necessario apportare delle modifiche affinché potessimo testare la rete con un carico di lavoro elevato e allo stesso tempo tener traccia dei messaggi giunti a destinazione (conferma di ricezione). I motivi per cui non è stato possibile l'impiego dei messaggi di tipo \texttt{SET} è descritto nel capitolo di \nameref{ch:progettazione}.\\
+Per il messaggio di tipo \texttt{SET\_UNACK} normalmente è prevista solo l'attuazione del comando ricevuto, però al fine del seguente lavoro è stato necessario apportare delle modifiche affinché potessimo testare la rete con un carico di lavoro elevato e allo stesso tempo tener traccia dei messaggi giunti a destinazione (conferma di ricezione). I motivi per cui non è stato possibile l'impiego dei messaggi di tipo \texttt{SET} è descritto nel capitolo di \nameref{ch:progettazione}.\\
 
-\noindent Il meccanismo implementato prevede l'utilizzo di messaggi di tipo \texttt{SET\_UNACK}. Alla ricezione di tale tipologia di messaggio viene innescato l'evento \texttt{ESP\_BLE\_MESH\_} \texttt{GENERIC\_SERVER\_RECV\_SET\_MSG\_EVT} in grado di gestire entrambe le tipologie di messaggi di tipo \texttt{SET}. Per distinguerle e lavorare solo con la tipologia di interesse è necessario accedere al contesto del messaggio. Da tali informazioni otteniamo sia il codice operativo (\texttt{recv\_op}) sia ulteriori informazioni in merito alla natura del messaggio. Dopo aver verificato il codice operativo si procede ad estrarre i dati contenuti nel messaggio in base al modello scelto (\texttt{Generic Level Set}). Ottenuto l'identificativo del messaggio (\texttt{level}) è possibile generare un messaggio di risposta il che garantirà al mittente la conferma di ricezione del messaggio avente tale identificativo. Il messaggio di risposta risulta essere di tipo \texttt{STATUS} e conterrà lo stesso identificativo del messaggio ricevuto dal nodo Server. Una volta immesso nella rete tale messaggio si procede ad attuare il cambiamento di stato corrispondente all'elemento destinatario di tale messaggio. Il cambiamento di stato in questa circostanza prevede l'accensione o lo spegnimento del \texttt{LED}, in base allo stato precedente. Con questo metodo anche l'utente è in grado di percepire lo svolgimento di tale operazione da parte del nodo e quindi assicurarsi che il test sta procedendo correttamente.\\
+\noindent Il meccanismo implementato prevede l'utilizzo di messaggi di tipo \texttt{SET\_UNACK}. Alla ricezione di tale tipologia di messaggio viene innescato l'evento \texttt{ESP\_BLE\_MESH\_} \texttt{GENERIC\_SERVER\_RECV\_SET\_MSG\_EVT} in grado di gestire entrambe le tipologie di messaggi di tipo \texttt{SET}. Per distinguerle e lavorare solo con la tipologia di interesse è necessario accedere al contesto del messaggio. Da tali informazioni otteniamo sia il codice operativo (\texttt{recv\_op}) sia ulteriori informazioni in merito alla natura del messaggio. Dopo aver verificato il codice operativo si procede ad estrarre i dati contenuti nel messaggio in base al modello scelto (\texttt{Generic Level Set}). Ottenuto l'identificativo del messaggio (\texttt{level}) è possibile generare un messaggio di risposta il che garantirà al mittente la conferma di ricezione del messaggio avente tale identificativo. Il messaggio di risposta risulta essere di tipo \texttt{STATUS} e conterrà lo stesso identificativo del messaggio ricevuto dal nodo Server. Una volta immesso nella rete tale messaggio si procede ad attuare il cambiamento di stato corrispondente all'elemento destinatario di tale messaggio. Il cambiamento di stato in questa circostanza prevede l'accensione o lo spegnimento del \texttt{LED}, in base allo stato precedente. Con questo metodo anche l'utente è in grado di percepire lo svolgimento di tale operazione da parte del nodo e quindi assicurarsi che il test sta procedendo correttamente.
 
 \begin{lstlisting}[language=C, caption= gestione messaggi di tipo \texttt{SET\_UNACK}]
 switch (ctx->recv_op) {
@@ -610,7 +613,7 @@ static void udp_server_task(void *pvParameters) {
 \label{sub:comunicazione_seriale}
 Come indicato in precedenza la comunicazione seriale tra il PC e il nodo Client è garantita attraverso uno script \texttt{Python} in esecuzione sul PC. Oltre a consentire la comunicazione tra i due dispositivi tramite seriale (avvalendosi della libreria \texttt{serial}) esso consente di verificare se la regola immessa dall'utente possa essere interpretata correttamente dal nodo al fine di evitare eventuali crash. Oltre a ciò prevede la creazione di un file di log contenente tutti gli eventi generati dal nodo e comunicati rispettando un formato prestabilito.\\
 
-\noindent Lo script prevede l'esecuzione dei seguenti due task in parallelo, il task \texttt{write\_on\_} \texttt{serial} per la definizione della regola da comunicare al nodo e il task \texttt{read\_from\_} \texttt{serial} per essere sempre in ascolto della seriale in modo da poter ricevere i dati comunicati dall'altro dispositivo.\\
+\noindent Lo script prevede: l'esecuzione del task \texttt{write\_on\_} \texttt{serial} per la definizione della regola da comunicare al nodo e del task \texttt{read\_from\_} \texttt{serial} per essere sempre in ascolto della seriale in modo da poter ricevere i dati comunicati dall'altro dispositivo. Utilizzando i thread è possibile eseguire questi due task simultaneamente.
 
 \begin{lstlisting}[language=Python, caption= scrittura su porta seriale e validazione input]
 def write_on_serial():
@@ -653,7 +656,7 @@ def write_on_serial():
 
 \noindent L'altro task in esecuzione all'interno del script consente di ricevere tutti gli eventi verificatosi sull'esp32 e creare il file di log. Alla ricezione di un'informazione tramite porta seriale viene immediatamente calcolato il timestamp dell'operazione e si procedere ad aggiungere i dati all'interno di un dictionary. Al termine del testbed, l'utente può scegliere se il dizionario creato debba essere salvato prima chiudere lo script oppure può essere rimosso. 
 
-\begin{lstlisting}[language=Python, caption= lettura tramite porta seriale e creazione con successivo salvataggio del file di log]
+\begin{lstlisting}[language=Python, caption= lettura da porta seriale e creazione del file di log]
 def read_from_serial():
     while True:
         received_data = esp32.readline()
